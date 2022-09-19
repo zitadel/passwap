@@ -3,14 +3,13 @@ package argon2
 import (
 	"bytes"
 	"crypto/rand"
-	"errors"
 	"fmt"
-	"io"
 	"reflect"
 	"strings"
 	"testing"
 
 	av "github.com/muhlemmer/passwap/internal/argon2values"
+	"github.com/muhlemmer/passwap/internal/salt"
 	"github.com/muhlemmer/passwap/verifier"
 	"golang.org/x/crypto/argon2"
 )
@@ -160,36 +159,45 @@ func Test_checker_verify(t *testing.T) {
 	}
 }
 
-type erreader struct{}
-
-func (erreader) Read([]byte) (int, error) {
-	return 0, io.ErrClosedPipe
-}
-
-func TestHasher_salt_panic(t *testing.T) {
-	defer func() {
-		err, _ := recover().(error)
-		if !errors.Is(err, io.ErrClosedPipe) {
-			t.Errorf("salt error = %v, want %v", err, io.ErrClosedPipe)
-		}
-	}()
-
-	h := Hasher{rand: erreader{}}
-	h.salt()
-}
-
 func TestHasher_Hash(t *testing.T) {
-	h := &Hasher{
-		p:    testParams,
-		id:   Identifier_id,
-		rand: strings.NewReader(av.Salt),
-		hf:   argon2.IDKey,
+	tests := []struct {
+		name    string
+		h       Hasher
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "salt error",
+			h: Hasher{
+				p:    testParams,
+				id:   Identifier_id,
+				rand: salt.ErrReader{},
+				hf:   argon2.IDKey,
+			},
+			wantErr: true,
+		},
+		{
+			name: "success",
+			h: Hasher{
+				p:    testParams,
+				id:   Identifier_id,
+				rand: strings.NewReader(av.Salt),
+				hf:   argon2.IDKey,
+			},
+			want: av.Encoded_id,
+		},
 	}
-
-	const want = av.Encoded_id
-
-	if got := h.Hash(av.Password); got != want {
-		t.Errorf("Hasher.Hash() =\n%v\nwant\n%v", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.h.Hash(av.Password)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Hasher.Hash() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Hasher.Hash() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -307,10 +315,12 @@ func TestHasher(t *testing.T) {
 	for _, tt := range tests {
 		h := tt(testParams)
 		t.Run(h.id, func(t *testing.T) {
-			res, err := h.Verify(
-				h.Hash(av.Password),
-				av.Password,
-			)
+			hash, err := h.Hash(av.Password)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := h.Verify(hash, av.Password)
 			if err != nil {
 				t.Fatal(err)
 			}

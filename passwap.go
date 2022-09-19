@@ -43,7 +43,7 @@ var (
 // and verify passwords against existing hashes created by itself.
 type Hasher interface {
 	verifier.Verifier
-	Hash(password string) (encoded string)
+	Hash(password string) (encoded string, err error)
 }
 
 // Swapper is capable of creating new hashes of passwords and
@@ -129,13 +129,13 @@ func (s *Swapper) Verify(encoded, password string) (updated string, err error) {
 	}
 
 	if needUpdate {
-		return s.Hash(password), nil
+		return s.Hash(password)
 	}
 	return "", nil
 }
 
 // Hash returns a new encoded password hash using the
 // configured Hasher.
-func (s *Swapper) Hash(password string) (encoded string) {
+func (s *Swapper) Hash(password string) (encoded string, err error) {
 	return s.h.Hash(password)
 }

@@ -11,6 +11,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/muhlemmer/passwap/internal/salt"
 	"github.com/muhlemmer/passwap/verifier"
 	"golang.org/x/crypto/argon2"
 )
@@ -116,26 +117,20 @@ type Hasher struct {
 	hf   hashFunc
 }
 
-func (h *Hasher) salt() []byte {
-	salt := make([]byte, h.p.SaltLen)
-
-	if _, err := h.rand.Read(salt); err != nil {
-		panic(err)
+// Hash implements passwap.Hasher.
+func (h *Hasher) Hash(password string) (string, error) {
+	salt, err := salt.New(h.rand, h.p.SaltLen)
+	if err != nil {
+		return "", fmt.Errorf("argon2: %w", err)
 	}
 
-	return salt
-}
-
-// Hash implements passwap.Hasher.
-func (h *Hasher) Hash(password string) string {
-	salt := h.salt()
 	hash := h.hf([]byte(password), salt, h.p.Time, h.p.Memory, h.p.Threads, h.p.KeyLen)
 
 	return fmt.Sprintf(Format,
 		h.id, argon2.Version, h.p.Memory, h.p.Time, h.p.Threads,
 		base64.RawStdEncoding.EncodeToString(salt),
 		base64.RawStdEncoding.EncodeToString(hash),
-	)
+	), nil
 }
 
 // Verify implements passwap.Verifier
