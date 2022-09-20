@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/muhlemmer/passwap/argon2"
-	av "github.com/muhlemmer/passwap/internal/argon2values"
+	tv "github.com/muhlemmer/passwap/internal/testvalues"
 	"github.com/muhlemmer/passwap/verifier"
 )
 
@@ -14,11 +14,11 @@ var (
 		return 99, nil
 	})
 	testArgon2Params = argon2.Params{
-		Time:    av.Time,
-		Memory:  av.Memory,
-		Threads: av.Threads,
-		KeyLen:  av.KeyLen,
-		SaltLen: av.SaltLen,
+		Time:    tv.Argon2Time,
+		Memory:  tv.Argon2Memory,
+		Threads: tv.Argon2Threads,
+		KeyLen:  tv.KeyLen,
+		SaltLen: tv.SaltLen,
 	}
 	testHasher  = argon2.NewArgon2id(testArgon2Params)
 	testSwapper = NewSwapper(testHasher, argon2.Argon2i, buggyV)
@@ -50,12 +50,12 @@ func TestSwapper_assertVerifier(t *testing.T) {
 		},
 		{
 			name:    "primary",
-			encoded: av.Encoded_id,
+			encoded: tv.Argon2idEncoded,
 			want:    testHasher,
 		},
 		{
 			name:           "verifier",
-			encoded:        av.Encoded_i,
+			encoded:        tv.Argon2iEncoded,
 			want:           argon2.Argon2i,
 			wantNeedUpdate: true,
 		},
@@ -100,39 +100,39 @@ func TestSwapper_Verify(t *testing.T) {
 	}{
 		{
 			name:    "assert error",
-			args:    args{"foobar", av.Password},
+			args:    args{"foobar", tv.Password},
 			wantErr: true,
 		},
 		{
 			name:    "argon2 parse error",
-			args:    args{"$argon2id$foo", av.Password},
+			args:    args{"$argon2id$foo", tv.Password},
 			wantErr: true,
 		},
 		{
 			name:    "wrong password",
-			args:    args{av.Encoded_i, "foobar"},
+			args:    args{tv.Argon2iEncoded, "foobar"},
 			wantErr: true,
 		},
 		{
 			name: "ok",
-			args: args{av.Encoded_id, av.Password},
+			args: args{tv.Argon2idEncoded, tv.Password},
 		},
 		{
 			name:        "assert update",
-			args:        args{av.Encoded_i, av.Password},
+			args:        args{tv.Argon2iEncoded, tv.Password},
 			wantUpdated: true,
 		},
 		{
 			name: "verifier update",
 			args: args{
 				`$argon2id$v=19$m=1024,t=3,p=1$cmFuZG9tc2FsdGlzaGFyZA$XEb5L9sMPxmHWcLjtNCnz0cn826ATCditca7qt3nSxM`,
-				av.Password,
+				tv.Password,
 			},
 			wantUpdated: true,
 		},
 		{
 			name:    "buggy verifier",
-			args:    args{`$buggy$stuff`, av.Password},
+			args:    args{`$buggy$stuff`, tv.Password},
 			wantErr: true,
 		},
 	}
@@ -158,7 +158,7 @@ func TestSwapper(t *testing.T) {
 
 	// Use "outdated" argon2i to trigger update
 	t.Run("update", func(t *testing.T) {
-		updated, err = testSwapper.Verify(av.Encoded_i, av.Password)
+		updated, err = testSwapper.Verify(tv.Argon2iEncoded, tv.Password)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -169,7 +169,7 @@ func TestSwapper(t *testing.T) {
 
 	// Verify updated hash again, should be valid and without update
 	t.Run("no update", func(t *testing.T) {
-		updated, err = testSwapper.Verify(updated, av.Password)
+		updated, err = testSwapper.Verify(updated, tv.Password)
 		if err != nil {
 			t.Fatal(err)
 		}

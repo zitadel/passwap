@@ -8,19 +8,19 @@ import (
 	"strings"
 	"testing"
 
-	av "github.com/muhlemmer/passwap/internal/argon2values"
 	"github.com/muhlemmer/passwap/internal/salt"
+	tv "github.com/muhlemmer/passwap/internal/testvalues"
 	"github.com/muhlemmer/passwap/verifier"
 	"golang.org/x/crypto/argon2"
 )
 
 var (
 	testParams = Params{
-		Time:    av.Time,
-		Memory:  av.Memory,
-		Threads: av.Threads,
-		KeyLen:  av.KeyLen,
-		SaltLen: av.SaltLen,
+		Time:    tv.Argon2Time,
+		Memory:  tv.Argon2Memory,
+		Threads: tv.Argon2Threads,
+		KeyLen:  tv.KeyLen,
+		SaltLen: tv.SaltLen,
 	}
 )
 
@@ -33,7 +33,7 @@ func Test_parse(t *testing.T) {
 	}{
 		{
 			"success i",
-			av.Encoded_i,
+			tv.Argon2iEncoded,
 			&checker{
 				Params: Params{
 					Time:    3,
@@ -42,14 +42,14 @@ func Test_parse(t *testing.T) {
 					KeyLen:  32,
 					SaltLen: 16,
 				},
-				hash: av.Hash_i,
-				salt: []byte(av.Salt),
+				hash: tv.Argon2iHash,
+				salt: []byte(tv.Salt),
 			},
 			false,
 		},
 		{
 			"success id",
-			av.Encoded_id,
+			tv.Argon2idEncoded,
 			&checker{
 				Params: Params{
 					Time:    3,
@@ -58,8 +58,8 @@ func Test_parse(t *testing.T) {
 					KeyLen:  32,
 					SaltLen: 16,
 				},
-				hash: av.Hash_id,
-				salt: []byte(av.Salt),
+				hash: tv.Argon2idHash,
+				salt: []byte(tv.Salt),
 			},
 			false,
 		},
@@ -71,7 +71,7 @@ func Test_parse(t *testing.T) {
 		},
 		{
 			"d error",
-			av.Encoded_d,
+			tv.Argon2dEncoded,
 			nil,
 			true,
 		},
@@ -132,8 +132,8 @@ func Test_parse(t *testing.T) {
 func Test_checker_verify(t *testing.T) {
 	c := checker{
 		Params: testParams,
-		hash:   av.Hash_i,
-		salt:   []byte(av.Salt),
+		hash:   tv.Argon2iHash,
+		salt:   []byte(tv.Salt),
 		hf:     argon2.Key,
 	}
 
@@ -146,7 +146,7 @@ func Test_checker_verify(t *testing.T) {
 			verifier.Fail,
 		},
 		{
-			av.Password,
+			tv.Password,
 			verifier.OK,
 		},
 	}
@@ -181,15 +181,15 @@ func TestHasher_Hash(t *testing.T) {
 			h: Hasher{
 				p:    testParams,
 				id:   Identifier_id,
-				rand: strings.NewReader(av.Salt),
+				rand: strings.NewReader(tv.Salt),
 				hf:   argon2.IDKey,
 			},
-			want: av.Encoded_id,
+			want: tv.Argon2idEncoded,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.h.Hash(av.Password)
+			got, err := tt.h.Hash(tv.Password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Hasher.Hash() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -223,7 +223,7 @@ func TestHasher_Verify(t *testing.T) {
 			},
 			args{
 				"foobar",
-				av.Password,
+				tv.Password,
 			},
 			verifier.Fail,
 			true,
@@ -237,7 +237,7 @@ func TestHasher_Verify(t *testing.T) {
 				hf:   argon2.Key,
 			},
 			args{
-				av.Encoded_i,
+				tv.Argon2iEncoded,
 				"spanac",
 			},
 			verifier.Fail,
@@ -247,19 +247,19 @@ func TestHasher_Verify(t *testing.T) {
 			"update",
 			Hasher{
 				p: Params{
-					Time:    av.Time,
+					Time:    tv.Argon2Time,
 					Memory:  32 * 1024,
-					Threads: av.Threads,
-					KeyLen:  av.KeyLen,
-					SaltLen: av.SaltLen,
+					Threads: tv.Argon2Threads,
+					KeyLen:  tv.KeyLen,
+					SaltLen: tv.SaltLen,
 				},
 				id:   Identifier_i,
 				rand: rand.Reader,
 				hf:   argon2.Key,
 			},
 			args{
-				av.Encoded_i,
-				av.Password,
+				tv.Argon2iEncoded,
+				tv.Password,
 			},
 			verifier.NeedUpdate,
 			false,
@@ -273,8 +273,8 @@ func TestHasher_Verify(t *testing.T) {
 				hf:   argon2.Key,
 			},
 			args{
-				av.Encoded_i,
-				av.Password,
+				tv.Argon2iEncoded,
+				tv.Password,
 			},
 			verifier.OK,
 			false,
@@ -315,12 +315,12 @@ func TestHasher(t *testing.T) {
 	for _, tt := range tests {
 		h := tt(testParams)
 		t.Run(h.id, func(t *testing.T) {
-			hash, err := h.Hash(av.Password)
+			hash, err := h.Hash(tv.Password)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			res, err := h.Verify(hash, av.Password)
+			res, err := h.Verify(hash, tv.Password)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -344,19 +344,19 @@ func TestVerify(t *testing.T) {
 	}{
 		{
 			"parse error",
-			args{"spanac", av.Password},
+			args{"spanac", tv.Password},
 			verifier.Fail,
 			true,
 		},
 		{
 			"success",
-			args{av.Encoded_id, av.Password},
+			args{tv.Argon2idEncoded, tv.Password},
 			verifier.OK,
 			false,
 		},
 		{
 			"fail",
-			args{av.Encoded_id, "spanac"},
+			args{tv.Argon2idEncoded, "spanac"},
 			verifier.Fail,
 			false,
 		},
