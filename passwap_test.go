@@ -35,6 +35,14 @@ func TestNewSwapper(t *testing.T) {
 	}
 }
 
+func Benchmark_findIdentifier(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if _, err := findIdentifier(tv.Argon2idEncoded); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestSwapper_assertVerifier(t *testing.T) {
 	tests := []struct {
 		name           string

@@ -73,12 +73,19 @@ func NewSwapper(h Hasher, verifiers ...verifier.Verifier) *Swapper {
 
 var idRe = regexp.MustCompile(`^\$(.*?)\$`)
 
-func (s *Swapper) assertVerifier(encoded string) (v verifier.Verifier, needUpdate bool, err error) {
+func findIdentifier(encoded string) (string, error) {
 	matches := idRe.FindStringSubmatch(encoded)
 	if len(matches) < 2 || matches[1] == "" {
-		return nil, false, ErrNoIdentifier
+		return "", ErrNoIdentifier
 	}
-	id := matches[1]
+	return matches[1], nil
+}
+
+func (s *Swapper) assertVerifier(encoded string) (v verifier.Verifier, needUpdate bool, err error) {
+	id, err := findIdentifier(encoded)
+	if err != nil {
+		return nil, false, err
+	}
 
 	if id == s.id {
 		return s.h, false, nil
