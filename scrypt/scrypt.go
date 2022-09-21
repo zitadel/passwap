@@ -159,5 +159,6 @@ func Verify(encoded, password string) (verifier.Result, error) {
 
 // Verifiers supported by this package.
 var (
-	Scrypt = verifier.NewFunc(Identifier, Verify)
+	Scrypt      = verifier.NewFunc(Identifier, Verify)
+	ScryptLinux = verifier.NewFunc(Identifier_Linux, Verify)
 )
