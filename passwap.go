@@ -29,14 +29,14 @@ package passwap
 import (
 	"errors"
 	"fmt"
-	"regexp"
+	"strings"
 
 	"github.com/muhlemmer/passwap/verifier"
 )
 
 var (
 	ErrPasswordMismatch = errors.New("passwap: password does not match hash")
-	ErrNoIdentifier     = errors.New("passwap: can't parse identifier from encoded string")
+	ErrNoVerifier       = errors.New("passwap: no verifier found for encoded string")
 )
 
 // Hasher is capable of creating new hashes of passwords,
@@ -52,58 +52,49 @@ type Hasher interface {
 // Swapper also updates hashes that are not created by
 // the main hasher or use outdated cost parameters.
 type Swapper struct {
-	id        string
 	h         Hasher
-	verifiers verifier.IDMap
+	verifiers []verifier.Verifier
 }
 
 // NewSwapper with Hasher used for creating new hashes and
 // primary verifier. Suplemental verifiers can be provided
-// and will be used when a hash's identifier does not match
-// the Hasher's ID().
+// and will be used as fallback.
 func NewSwapper(h Hasher, verifiers ...verifier.Verifier) *Swapper {
+	allV := make([]verifier.Verifier, 1, len(verifiers)+1)
+	allV[0] = h
+	allV = append(allV, verifiers...)
+
 	s := &Swapper{
-		id:        h.ID(),
 		h:         h,
-		verifiers: verifier.NewIDMap(verifiers),
+		verifiers: allV,
 	}
 
 	return s
 }
 
-var idRe = regexp.MustCompile(`^\$(.*?)\$`)
+// SkipErrors is only returned when multiple
+// Verifiers matched an encoding string,
+// but encountered an error decoding it.
+type SkipErrors []error
 
-func findIdentifier(encoded string) (string, error) {
-	matches := idRe.FindStringSubmatch(encoded)
-	if len(matches) < 2 || matches[1] == "" {
-		return "", ErrNoIdentifier
-	}
-	return matches[1], nil
-}
-
-func (s *Swapper) assertVerifier(encoded string) (v verifier.Verifier, needUpdate bool, err error) {
-	id, err := findIdentifier(encoded)
-	if err != nil {
-		return nil, false, err
+func (e SkipErrors) Error() string {
+	strs := make([]string, len(e))
+	for i := 0; i < len(e); i++ {
+		strs[i] = e[i].Error()
 	}
 
-	if id == s.id {
-		return s.h, false, nil
-	}
-
-	if v, ok := s.verifiers[id]; ok {
-		return v, true, nil
-	}
-
-	return nil, false, fmt.Errorf("passwap: unknown verifier %s", id)
+	return fmt.Sprintf("passwap multiple parse errors: %s", strings.Join(strs, "; "))
 }
 
 // Verify a password against an existing encoded hash,
 // using the configured Hasher or one of the Verifiers.
 //
-// An error is returned if no matching Verifier is found,
-// the encoded string is malformed or ErrPasswordMismatch
+// ErrNoVerifier is returned if no matching Verifier is found
+// for the encoded string. ErrPasswordMismatch
 // when the password hash doesn't match the encoded hash.
+// When multiple Verifiers match and encounter an error during
+// decoding, a SkipErrors is returned containing all those errors
+// is returned.
 //
 // If the used Verifier is different from the the current
 // Hasher or the cost parameters differ, an updated encoded hash
@@ -111,34 +102,51 @@ func (s *Swapper) assertVerifier(encoded string) (v verifier.Verifier, needUpdat
 // In all other cases updated remains empty.
 // When updated is not empty, it must be stored untill next use.
 func (s *Swapper) Verify(encoded, password string) (updated string, err error) {
-	v, needUpdate, err := s.assertVerifier(encoded)
-	if err != nil {
-		return "", err
+	var errs SkipErrors
+
+	for i, v := range s.verifiers {
+		result, err := v.Verify(encoded, password)
+
+		switch result {
+		case verifier.Fail:
+			if err != nil {
+				return "", fmt.Errorf("passwap: %w", err)
+			}
+			return "", ErrPasswordMismatch
+
+		case verifier.OK:
+			if i == 0 {
+				return "", nil
+			}
+
+			// the first Verifier is the Hasher.
+			// Any other Verifier should trigger an update.
+			return s.Hash(password)
+
+		case verifier.NeedUpdate:
+			return s.Hash(password)
+
+		case verifier.Skip:
+			if err != nil {
+				errs = append(errs, err)
+			}
+			continue
+
+		default:
+			return "", fmt.Errorf("passwap: (BUG) verifier %d returned invalid result N %d", i, result)
+		}
 	}
 
-	result, err := v.Verify(encoded, password)
-	if err != nil {
-		return "", fmt.Errorf("passwap: %w", err)
-	}
+	switch len(errs) {
+	case 0:
+		return "", ErrNoVerifier
 
-	switch result {
-	case verifier.Fail:
-		return "", ErrPasswordMismatch
-
-	case verifier.OK:
-		break
-
-	case verifier.NeedUpdate:
-		needUpdate = true
+	case 1:
+		return "", fmt.Errorf("passwap: %w", errs[0])
 
 	default:
-		return "", fmt.Errorf("passwap: (BUG) verifier %s returned invalid result N %d", v.ID(), result)
+		return "", errs
 	}
-
-	if needUpdate {
-		return s.Hash(password)
-	}
-	return "", nil
 }
 
 // Hash returns a new encoded password hash using the

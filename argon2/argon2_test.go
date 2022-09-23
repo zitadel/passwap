@@ -21,6 +21,7 @@ var (
 		Threads: tv.Argon2Threads,
 		KeyLen:  tv.KeyLen,
 		SaltLen: tv.SaltLen,
+		id:      Identifier_id,
 	}
 )
 
@@ -41,6 +42,7 @@ func Test_parse(t *testing.T) {
 					Threads: 1,
 					KeyLen:  32,
 					SaltLen: 16,
+					id:      Identifier_i,
 				},
 				hash: tv.Argon2iHash,
 				salt: []byte(tv.Salt),
@@ -57,6 +59,7 @@ func Test_parse(t *testing.T) {
 					Threads: 1,
 					KeyLen:  32,
 					SaltLen: 16,
+					id:      Identifier_id,
 				},
 				hash: tv.Argon2idHash,
 				salt: []byte(tv.Salt),
@@ -64,8 +67,14 @@ func Test_parse(t *testing.T) {
 			false,
 		},
 		{
-			"scan error",
+			"skip",
 			"foobar",
+			nil,
+			false,
+		},
+		{
+			"scan error",
+			"$argon2!!!",
 			nil,
 			true,
 		},
@@ -76,8 +85,8 @@ func Test_parse(t *testing.T) {
 			true,
 		},
 		{
-			"unknown id error",
-			`$foobar$v=19$m=4096,t=3,p=1$c2FsdHNhbHQ$MA1lJTML3jy8LJyr9lIP/68/omuHWSRxKjeWC0d0a5k`,
+			"unknown id",
+			strings.ReplaceAll(tv.Argon2iEncoded, "argon2i", "argon2x"),
 			nil,
 			true,
 		},
@@ -170,7 +179,6 @@ func TestHasher_Hash(t *testing.T) {
 			name: "salt error",
 			h: Hasher{
 				p:    testParams,
-				id:   Identifier_id,
 				rand: salt.ErrReader{},
 				hf:   argon2.IDKey,
 			},
@@ -180,7 +188,6 @@ func TestHasher_Hash(t *testing.T) {
 			name: "success",
 			h: Hasher{
 				p:    testParams,
-				id:   Identifier_id,
 				rand: strings.NewReader(tv.Salt),
 				hf:   argon2.IDKey,
 			},
@@ -217,27 +224,25 @@ func TestHasher_Verify(t *testing.T) {
 			"parse error",
 			Hasher{
 				p:    testParams,
-				id:   Identifier_i,
 				rand: rand.Reader,
 				hf:   argon2.Key,
 			},
 			args{
-				"foobar",
+				"$argon2!!!",
 				tv.Password,
 			},
-			verifier.Fail,
+			verifier.Skip,
 			true,
 		},
 		{
 			"wrong password",
 			Hasher{
 				p:    testParams,
-				id:   Identifier_i,
 				rand: rand.Reader,
 				hf:   argon2.Key,
 			},
 			args{
-				tv.Argon2iEncoded,
+				tv.Argon2idEncoded,
 				"spanac",
 			},
 			verifier.Fail,
@@ -253,12 +258,11 @@ func TestHasher_Verify(t *testing.T) {
 					KeyLen:  tv.KeyLen,
 					SaltLen: tv.SaltLen,
 				},
-				id:   Identifier_i,
 				rand: rand.Reader,
 				hf:   argon2.Key,
 			},
 			args{
-				tv.Argon2iEncoded,
+				tv.Argon2idEncoded,
 				tv.Password,
 			},
 			verifier.NeedUpdate,
@@ -268,12 +272,11 @@ func TestHasher_Verify(t *testing.T) {
 			"success",
 			Hasher{
 				p:    testParams,
-				id:   Identifier_i,
 				rand: rand.Reader,
 				hf:   argon2.Key,
 			},
 			args{
-				tv.Argon2iEncoded,
+				tv.Argon2idEncoded,
 				tv.Password,
 			},
 			verifier.OK,
@@ -294,19 +297,6 @@ func TestHasher_Verify(t *testing.T) {
 	}
 }
 
-func TestHasher_ID(t *testing.T) {
-	h := Hasher{
-		p:    testParams,
-		id:   Identifier_id,
-		rand: rand.Reader,
-		hf:   argon2.Key,
-	}
-
-	if id := h.ID(); id != Identifier_id {
-		t.Errorf("Hasher.ID = %s, want %s", id, Identifier_id)
-	}
-}
-
 func TestHasher(t *testing.T) {
 	tests := [...]func(Params) *Hasher{
 		NewArgon2i, NewArgon2id,
@@ -314,7 +304,7 @@ func TestHasher(t *testing.T) {
 
 	for _, tt := range tests {
 		h := tt(testParams)
-		t.Run(h.id, func(t *testing.T) {
+		t.Run(h.p.id, func(t *testing.T) {
 			hash, err := h.Hash(tv.Password)
 			if err != nil {
 				t.Fatal(err)
@@ -344,8 +334,8 @@ func TestVerify(t *testing.T) {
 	}{
 		{
 			"parse error",
-			args{"spanac", tv.Password},
-			verifier.Fail,
+			args{"$argon2!!", tv.Password},
+			verifier.Skip,
 			true,
 		},
 		{

@@ -1,18 +1,30 @@
 package passwap
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/muhlemmer/passwap/argon2"
 	tv "github.com/muhlemmer/passwap/internal/testvalues"
+	"github.com/muhlemmer/passwap/scrypt"
 	"github.com/muhlemmer/passwap/verifier"
 )
 
 var (
-	buggyV = verifier.NewFunc("buggy", func(string, string) (verifier.Result, error) {
-		return 99, nil
+	mockV = verifier.VerifyFunc(func(encoded string, password string) (verifier.Result, error) {
+		switch encoded {
+		case "$mock$bug":
+			return 99, nil
+		case "$mock$failErr":
+			return verifier.Fail, errors.New("oops!")
+		case "$argon2id$multi":
+			return verifier.Skip, errors.New("oops!")
+		default:
+			return verifier.Skip, nil
+		}
 	})
+
 	testArgon2Params = argon2.Params{
 		Time:    tv.Argon2Time,
 		Memory:  tv.Argon2Memory,
@@ -21,77 +33,27 @@ var (
 		SaltLen: tv.SaltLen,
 	}
 	testHasher  = argon2.NewArgon2id(testArgon2Params)
-	testSwapper = NewSwapper(testHasher, argon2.Argon2i, buggyV)
+	testSwapper = NewSwapper(testHasher, mockV, scrypt.Verifier)
 )
 
 func TestNewSwapper(t *testing.T) {
 	want := &Swapper{
-		id:        argon2.Identifier_id,
 		h:         testHasher,
-		verifiers: verifier.IDMap{argon2.Argon2i.ID(): argon2.Argon2i},
+		verifiers: []verifier.Verifier{testHasher, argon2.Verifier},
 	}
-	if got := NewSwapper(testHasher, argon2.Argon2i); !reflect.DeepEqual(got, want) {
+	if got := NewSwapper(testHasher, argon2.Verifier); !reflect.DeepEqual(got.h, want.h) || len(got.verifiers) != len(want.verifiers) {
 		t.Errorf("NewSwapper() = %v, want %v", got, want)
 	}
 }
 
-func Benchmark_findIdentifier(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		if _, err := findIdentifier(tv.Argon2idEncoded); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
+func TestMultiError(t *testing.T) {
+	const (
+		want = "passwap multiple parse errors: foo; bar"
+	)
 
-func TestSwapper_assertVerifier(t *testing.T) {
-	tests := []struct {
-		name           string
-		encoded        string
-		want           verifier.Verifier
-		wantNeedUpdate bool
-		wantErr        bool
-	}{
-		{
-			name:    "No identifier",
-			encoded: "foo",
-			wantErr: true,
-		},
-		{
-			name:    "primary",
-			encoded: tv.Argon2idEncoded,
-			want:    testHasher,
-		},
-		{
-			name:           "verifier",
-			encoded:        tv.Argon2iEncoded,
-			want:           argon2.Argon2i,
-			wantNeedUpdate: true,
-		},
-		{
-			name:    "unknown",
-			encoded: `$foo$bar`,
-			wantErr: true,
-		},
-		{
-			name:    "wrong match",
-			encoded: `$$foo$$bar`,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, needUpdate, err := testSwapper.assertVerifier(tt.encoded)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Swapper.assertVerifier() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Swapper.assertVerifier() = %v, want %v", got, tt.want)
-			}
-			if needUpdate != tt.wantNeedUpdate {
-				t.Errorf("Swapper.assertVerifier() needUpdate = %v, want %v", needUpdate, tt.wantNeedUpdate)
-			}
-		})
+	errs := SkipErrors{errors.New("foo"), errors.New("bar")}
+	if got := errs.Error(); got != want {
+		t.Errorf("MultiError =\n%s\nwant\n%s", got, want)
 	}
 }
 
@@ -107,7 +69,7 @@ func TestSwapper_Verify(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name:    "assert error",
+			name:    "no verifier",
 			args:    args{"foobar", tv.Password},
 			wantErr: true,
 		},
@@ -126,21 +88,28 @@ func TestSwapper_Verify(t *testing.T) {
 			args: args{tv.Argon2idEncoded, tv.Password},
 		},
 		{
-			name:        "assert update",
+			name:        "argon2 update",
 			args:        args{tv.Argon2iEncoded, tv.Password},
 			wantUpdated: true,
 		},
 		{
-			name: "verifier update",
-			args: args{
-				`$argon2id$v=19$m=1024,t=3,p=1$cmFuZG9tc2FsdGlzaGFyZA$XEb5L9sMPxmHWcLjtNCnz0cn826ATCditca7qt3nSxM`,
-				tv.Password,
-			},
+			name:        "hasher upgrade",
+			args:        args{tv.ScryptEncoded, tv.Password},
 			wantUpdated: true,
 		},
 		{
-			name:    "buggy verifier",
-			args:    args{`$buggy$stuff`, tv.Password},
+			name:    "fail with error",
+			args:    args{`$mock$failErr`, tv.Password},
+			wantErr: true,
+		},
+		{
+			name:    "verifier bug",
+			args:    args{`$mock$bug`, tv.Password},
+			wantErr: true,
+		},
+		{
+			name:    "multiple errors",
+			args:    args{"$argon2id$multi", tv.Password},
 			wantErr: true,
 		},
 	}

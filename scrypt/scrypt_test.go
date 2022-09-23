@@ -29,13 +29,12 @@ func Test_parse(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "scan error",
+			name:    "skip",
 			encoded: "foobar",
-			wantErr: true,
 		},
 		{
-			name:    "identifier error",
-			encoded: strings.ReplaceAll(tv.ScryptEncoded, "scrypt", "foo"),
+			name:    "scan error",
+			encoded: "$scrypt$!!!!",
 			wantErr: true,
 		},
 		{
@@ -191,7 +190,8 @@ func TestHasher_Verify(t *testing.T) {
 		{
 			name:    "parse error",
 			p:       testParams,
-			args:    args{"foo", tv.Password},
+			args:    args{"$scrypt$!!!!", tv.Password},
+			want:    verifier.Skip,
 			wantErr: true,
 		},
 		{
@@ -237,12 +237,6 @@ func TestHasher_Verify(t *testing.T) {
 	}
 }
 
-func TestHasher_ID(t *testing.T) {
-	if got := new(Hasher).ID(); got != Identifier {
-		t.Errorf("Hasher.ID = %s, want %s", got, Identifier)
-	}
-}
-
 func TestHasher(t *testing.T) {
 	h := New(testParams)
 	hash, err := h.Hash(tv.Password)
@@ -272,7 +266,8 @@ func TestVerify(t *testing.T) {
 	}{
 		{
 			name:    "parse error",
-			args:    args{"foo", tv.Password},
+			args:    args{"$scrypt$!!!!", tv.Password},
+			want:    verifier.Skip,
 			wantErr: true,
 		},
 		{

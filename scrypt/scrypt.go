@@ -17,6 +17,8 @@ import (
 const (
 	Identifier       = "scrypt"
 	Identifier_Linux = "7"
+	Prefix           = "$" + Identifier + "$"
+	Prefix_Linux     = "$" + Identifier_Linux + "$"
 )
 
 type Params struct {
@@ -41,6 +43,10 @@ type checker struct {
 }
 
 func parse(encoded string) (*checker, error) {
+	if !strings.HasPrefix(encoded, Prefix) && !strings.HasPrefix(encoded, Prefix_Linux) {
+		return nil, nil
+	}
+
 	var (
 		id   string
 		ln   int
@@ -58,10 +64,6 @@ func parse(encoded string) (*checker, error) {
 	}
 
 	c.N = 1 << ln
-
-	if id != Identifier && id != Identifier_Linux {
-		return nil, fmt.Errorf("scrypt: unknown identifier %s", id)
-	}
 
 	c.salt, err = base64.RawStdEncoding.Strict().DecodeString(salt)
 	if err != nil {
@@ -117,25 +119,22 @@ func (h *Hasher) Hash(password string) (string, error) {
 
 // Verify implements passwap.Verifier
 func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
-	v, err := parse(encoded)
-	if err != nil {
-		return verifier.Fail, err
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
 	}
 
-	res, err := v.verify(password)
+	res, err := c.verify(password)
 	if err != nil || res == 0 {
 		return verifier.Fail, err
 	}
 
-	if h.p != v.Params {
+	if h.p != c.Params {
 		return verifier.NeedUpdate, nil
 	}
 
 	return verifier.OK, nil
 }
-
-// ID implements passwap.Verifier
-func (*Hasher) ID() string { return Identifier }
 
 func New(p Params) *Hasher {
 	return &Hasher{
@@ -149,16 +148,13 @@ func New(p Params) *Hasher {
 // Either the result of Fail or OK is returned,
 // or an error if parsing fails.
 func Verify(encoded, password string) (verifier.Result, error) {
-	v, err := parse(encoded)
-	if err != nil {
-		return verifier.Fail, err
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
 	}
 
-	return v.verify(password)
+	return c.verify(password)
 }
 
-// Verifiers supported by this package.
-var (
-	Scrypt      = verifier.NewFunc(Identifier, Verify)
-	ScryptLinux = verifier.NewFunc(Identifier_Linux, Verify)
-)
+// Verifier for Scrypt
+var Verifier = verifier.VerifyFunc(Verify)

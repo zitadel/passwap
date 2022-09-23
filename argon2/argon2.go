@@ -21,6 +21,7 @@ const (
 	Identifier_i  = "argon2i"
 	Identifier_d  = "argon2d" // Unsupported
 	Identifier_id = "argon2id"
+	Prefix        = "$argon2"
 )
 
 // Params are used for all argon2 modes.
@@ -30,6 +31,8 @@ type Params struct {
 	Threads uint8
 	KeyLen  uint32
 	SaltLen uint32
+
+	id string
 }
 
 // Format of the PHC string format for argon2.
@@ -56,8 +59,11 @@ type checker struct {
 }
 
 func parse(encoded string) (*checker, error) {
+	if !strings.HasPrefix(encoded, Prefix) {
+		return nil, nil
+	}
+
 	var (
-		id      string
 		version int
 		salt    string
 		hash    string
@@ -67,12 +73,12 @@ func parse(encoded string) (*checker, error) {
 	// scanning needs a space seperated string, instead of dollar signs.
 	encoded = strings.ReplaceAll(encoded, "$", " ")
 
-	_, err := fmt.Sscanf(encoded, scanFormat, &id, &version, &c.Memory, &c.Time, &c.Threads, &salt, &hash)
+	_, err := fmt.Sscanf(encoded, scanFormat, &c.id, &version, &c.Memory, &c.Time, &c.Threads, &salt, &hash)
 	if err != nil {
 		return nil, fmt.Errorf("argon2 parse: %w", err)
 	}
 
-	switch id {
+	switch c.id {
 	case Identifier_i:
 		c.hf = argon2.Key
 	case Identifier_id:
@@ -80,7 +86,7 @@ func parse(encoded string) (*checker, error) {
 	case Identifier_d:
 		return nil, ErrArgon2d
 	default:
-		return nil, fmt.Errorf("argon2: unknown identifier %s", id)
+		return nil, fmt.Errorf("argon2: unknown identifier %s", c.id)
 	}
 
 	if version != argon2.Version {
@@ -112,7 +118,6 @@ func (c *checker) verify(pw string) verifier.Result {
 
 type Hasher struct {
 	p    Params
-	id   string
 	rand io.Reader
 	hf   hashFunc
 }
@@ -127,7 +132,7 @@ func (h *Hasher) Hash(password string) (string, error) {
 	hash := h.hf([]byte(password), salt, h.p.Time, h.p.Memory, h.p.Threads, h.p.KeyLen)
 
 	return fmt.Sprintf(Format,
-		h.id, argon2.Version, h.p.Memory, h.p.Time, h.p.Threads,
+		h.p.id, argon2.Version, h.p.Memory, h.p.Time, h.p.Threads,
 		base64.RawStdEncoding.EncodeToString(salt),
 		base64.RawStdEncoding.EncodeToString(hash),
 	), nil
@@ -135,39 +140,38 @@ func (h *Hasher) Hash(password string) (string, error) {
 
 // Verify implements passwap.Verifier
 func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
-	v, err := parse(encoded)
-	if err != nil {
-		return verifier.Fail, err
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
 	}
 
-	res := v.verify(password)
+	res := c.verify(password)
 	if res == 0 {
 		return verifier.Fail, nil
 	}
 
-	if h.p != v.Params {
+	if h.p != c.Params {
 		return verifier.NeedUpdate, nil
 	}
 
 	return verifier.OK, nil
 }
 
-// ID implements passwap.Verifier
-func (h *Hasher) ID() string { return h.id }
-
 func NewArgon2i(p Params) *Hasher {
+	p.id = Identifier_i
+
 	return &Hasher{
 		p:    p,
-		id:   Identifier_i,
 		rand: rand.Reader,
 		hf:   argon2.Key,
 	}
 }
 
 func NewArgon2id(p Params) *Hasher {
+	p.id = Identifier_id
+
 	return &Hasher{
 		p:    p,
-		id:   Identifier_id,
 		rand: rand.Reader,
 		hf:   argon2.IDKey,
 	}
@@ -183,16 +187,12 @@ func NewArgon2id(p Params) *Hasher {
 // ErrArgon2d is returned when an argon2d identifier is in
 // the encoded string.
 func Verify(encoded, password string) (verifier.Result, error) {
-	v, err := parse(encoded)
-	if err != nil {
-		return verifier.Fail, err
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
 	}
 
-	return v.verify(password), nil
+	return c.verify(password), nil
 }
 
-// Verifiers supported by this package.
-var (
-	Argon2i  = verifier.NewFunc(Identifier_i, Verify)
-	Argon2id = verifier.NewFunc(Identifier_id, Verify)
-)
+var Verifier = verifier.VerifyFunc(Verify)

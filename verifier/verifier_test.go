@@ -4,32 +4,17 @@ import (
 	"testing"
 
 	"github.com/muhlemmer/passwap/argon2"
+	tv "github.com/muhlemmer/passwap/internal/testvalues"
 	"github.com/muhlemmer/passwap/verifier"
 )
 
-func TestNewIDMap(t *testing.T) {
-	verifiers := []verifier.Verifier{
-		argon2.Argon2i,
-		argon2.Argon2id,
-	}
-
-	m := verifier.NewIDMap(verifiers)
-
-	for _, v := range verifiers {
-		if _, ok := m[v.ID()]; !ok {
-			t.Errorf("NewIDMap: %s missing", v.ID())
-		}
-	}
-
-	res, err := m[argon2.Identifier_id].Verify(
-		`$argon2id$v=19$m=4096,t=3,p=1$c2FsdHNhbHQ$sohxEThr7t72cOKoCEfcb3z65EHDVEOEKBlabLm3h+s`,
-		"foobar",
-	)
+func TestVerifyFunc_Verify(t *testing.T) {
+	v := verifier.VerifyFunc(argon2.Verify)
+	result, err := v.Verify(tv.Argon2idEncoded, tv.Password)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if res != verifier.OK {
-		t.Errorf("Verifier() = %s, want %s", res, verifier.OK)
+	if result != verifier.OK {
+		t.Errorf("VerifyFunc = %s, want %s", result, verifier.OK)
 	}
 }
