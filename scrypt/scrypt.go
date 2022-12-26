@@ -1,3 +1,5 @@
+// Package scrypt provides salt generation, hashing
+// and verification for x/crypto/scrypt.
 package scrypt
 
 import (
@@ -14,6 +16,8 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
+// Identifiers and prefixes that describe and
+// scrypt encoded hash string.
 const (
 	Identifier       = "scrypt"
 	Identifier_Linux = "7"
@@ -22,9 +26,14 @@ const (
 )
 
 type Params struct {
-	N       int
-	R       int
-	P       int
+	// N, R, P are the cost parameters used
+	// by scrypt.Key:
+	// https://pkg.go.dev/golang.org/x/crypto/scrypt#Key
+	N int
+	R int
+	P int
+
+	// Lengths for key output and desired salt.
 	KeyLen  int
 	SaltLen uint32
 }
