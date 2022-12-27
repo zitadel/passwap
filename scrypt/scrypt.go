@@ -165,5 +165,5 @@ func Verify(encoded, password string) (verifier.Result, error) {
 	return c.verify(password)
 }
 
-// Verifier for Scrypt
+// Verifier for Scrypt.
 var Verifier = verifier.VerifyFunc(Verify)
