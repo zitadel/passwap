@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/muhlemmer/passwap/argon2"
-	"github.com/muhlemmer/passwap/bcrypt"
-	tv "github.com/muhlemmer/passwap/internal/testvalues"
-	"github.com/muhlemmer/passwap/scrypt"
-	"github.com/muhlemmer/passwap/verifier"
+	"github.com/zitadel/passwap/argon2"
+	"github.com/zitadel/passwap/bcrypt"
+	tv "github.com/zitadel/passwap/internal/testvalues"
+	"github.com/zitadel/passwap/scrypt"
+	"github.com/zitadel/passwap/verifier"
 )
 
 var (

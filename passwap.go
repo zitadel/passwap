@@ -31,7 +31,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/muhlemmer/passwap/verifier"
+	"github.com/zitadel/passwap/verifier"
 )
 
 var (

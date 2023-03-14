@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/muhlemmer/passwap/internal/salt"
-	tv "github.com/muhlemmer/passwap/internal/testvalues"
-	"github.com/muhlemmer/passwap/verifier"
+	"github.com/zitadel/passwap/internal/salt"
+	tv "github.com/zitadel/passwap/internal/testvalues"
+	"github.com/zitadel/passwap/verifier"
 )
 
 var (

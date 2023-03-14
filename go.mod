@@ -1,4 +1,4 @@
-module github.com/muhlemmer/passwap
+module github.com/zitadel/passwap
 
 go 1.18
 

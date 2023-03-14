@@ -11,8 +11,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/muhlemmer/passwap/internal/salt"
-	"github.com/muhlemmer/passwap/verifier"
+	"github.com/zitadel/passwap/internal/salt"
+	"github.com/zitadel/passwap/verifier"
 	"golang.org/x/crypto/argon2"
 )
 

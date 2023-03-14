@@ -1,8 +1,8 @@
 # Passwap
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/muhlemmer/passwap.svg)](https://pkg.go.dev/github.com/muhlemmer/passwap)
-[![Go](https://github.com/muhlemmer/passwap/actions/workflows/go.yml/badge.svg)](https://github.com/muhlemmer/passwap/actions/workflows/go.yml)
-[![codecov](https://codecov.io/github/muhlemmer/passwap/branch/main/graph/badge.svg?token=OIGV4ZT3B5)](https://codecov.io/github/muhlemmer/passwap)
+[![Go Reference](https://pkg.go.dev/badge/github.com/zitadel/passwap.svg)](https://pkg.go.dev/github.com/zitadel/passwap)
+[![Go](https://github.com/zitadel/passwap/actions/workflows/go.yml/badge.svg)](https://github.com/zitadel/passwap/actions/workflows/go.yml)
+[![codecov](https://codecov.io/github/zitadel/passwap/branch/main/graph/badge.svg?token=OIGV4ZT3B5)](https://codecov.io/github/zitadel/passwap)
 
 Package passwap provides a unified implementation between
 different password hashing algorithms.

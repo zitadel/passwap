@@ -3,7 +3,7 @@ package bcrypt
 import (
 	"bytes"
 
-	"github.com/muhlemmer/passwap/verifier"
+	"github.com/zitadel/passwap/verifier"
 	"golang.org/x/crypto/bcrypt"
 )
 

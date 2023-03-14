@@ -3,9 +3,9 @@ package verifier_test
 import (
 	"testing"
 
-	"github.com/muhlemmer/passwap/argon2"
-	tv "github.com/muhlemmer/passwap/internal/testvalues"
-	"github.com/muhlemmer/passwap/verifier"
+	"github.com/zitadel/passwap/argon2"
+	tv "github.com/zitadel/passwap/internal/testvalues"
+	"github.com/zitadel/passwap/verifier"
 )
 
 func TestVerifyFunc_Verify(t *testing.T) {
