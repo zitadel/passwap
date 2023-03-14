@@ -38,6 +38,16 @@ type Params struct {
 	SaltLen uint32
 }
 
+var (
+	RecommendedParams = Params{
+		N:       32768,
+		R:       8,
+		P:       1,
+		KeyLen:  32,
+		SaltLen: 16,
+	}
+)
+
 // Format of the Modular Crypt Format, as used by passlib.
 // See https://passlib.readthedocs.io/en/stable/lib/passlib.hash.scrypt.html#format-algorithm
 const Format = "$%s$ln=%d,r=%d,p=%d$%s$%s"

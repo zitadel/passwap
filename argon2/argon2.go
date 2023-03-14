@@ -35,6 +35,23 @@ type Params struct {
 	id string
 }
 
+var (
+	RecommendedIParams = Params{
+		Time:    3,
+		Memory:  32 * 1024,
+		Threads: 4,
+		KeyLen:  32,
+		SaltLen: 16,
+	}
+	RecommendedIDParams = Params{
+		Time:    1,
+		Memory:  64 * 1024,
+		Threads: 4,
+		KeyLen:  32,
+		SaltLen: 16,
+	}
+)
+
 // Format of the PHC string format for argon2.
 // See https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md.
 const Format = "$%s$v=%d$m=%d,t=%d,p=%d$%s$%s"

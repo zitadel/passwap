@@ -18,6 +18,12 @@ var (
 	Versions = [...]byte{'a', 'b', 'y'}
 )
 
+const (
+	MinCost     = bcrypt.MinCost
+	MaxCost     = bcrypt.MaxCost
+	DefaultCost = bcrypt.DefaultCost
+)
+
 // hasBcryptVersion checks for the Bcrypt Prefix
 // and all of the declared Versions or the
 // Prefix used for the first version of Bcrypt.
