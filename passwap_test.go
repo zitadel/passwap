@@ -60,9 +60,58 @@ func TestMultiError(t *testing.T) {
 }
 
 func TestSwapper_Verify(t *testing.T) {
+	gotUpdated, err := testSwapper.Verify(tv.Argon2iEncoded, tv.Password)
+	if err != nil {
+		t.Errorf("Swapper.Verify() error = %v", err)
+		return
+	}
+	if gotUpdated == "" {
+		t.Error("Swapper.Verify() did not return updated")
+	}
+}
+
+func TestSwapper_VerifyAndUpdate(t *testing.T) {
 	type args struct {
-		encoded  string
-		password string
+		encoded     string
+		oldPassword string
+		newPassword string
+	}
+	tests := []struct {
+		name        string
+		args        args
+		wantUpdated bool
+		wantErr     error
+	}{
+		{
+			name:    "no update",
+			args:    args{tv.Argon2idEncoded, tv.Password, tv.Password},
+			wantErr: ErrPasswordNoChange,
+		},
+		{
+			name:        "update",
+			args:        args{tv.Argon2idEncoded, tv.Password, "newpassword"},
+			wantUpdated: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotUpdated, err := testSwapper.VerifyAndUpdate(tt.args.encoded, tt.args.oldPassword, tt.args.newPassword)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("Swapper.VerifyAndUpdate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if (gotUpdated != "") != tt.wantUpdated {
+				t.Errorf("Swapper.VerifyAndUpdate() = %v, want %v", gotUpdated, tt.wantUpdated)
+			}
+		})
+	}
+}
+
+func TestSwapper_verifyAndUpdate(t *testing.T) {
+	type args struct {
+		encoded     string
+		oldPassword string
+		newPassword string
 	}
 	tests := []struct {
 		name        string
@@ -72,58 +121,63 @@ func TestSwapper_Verify(t *testing.T) {
 	}{
 		{
 			name:    "no verifier",
-			args:    args{"foobar", tv.Password},
+			args:    args{"foobar", tv.Password, tv.Password},
 			wantErr: true,
 		},
 		{
 			name:    "argon2 parse error",
-			args:    args{"$argon2id$foo", tv.Password},
+			args:    args{"$argon2id$foo", tv.Password, tv.Password},
 			wantErr: true,
 		},
 		{
 			name:    "wrong password",
-			args:    args{tv.Argon2iEncoded, "foobar"},
+			args:    args{tv.Argon2iEncoded, "foobar", tv.Password},
 			wantErr: true,
 		},
 		{
 			name: "ok",
-			args: args{tv.Argon2idEncoded, tv.Password},
+			args: args{tv.Argon2idEncoded, tv.Password, tv.Password},
+		},
+		{
+			name:        "password update",
+			args:        args{tv.Argon2idEncoded, tv.Password, "newpassword"},
+			wantUpdated: true,
 		},
 		{
 			name:        "argon2 update",
-			args:        args{tv.Argon2iEncoded, tv.Password},
+			args:        args{tv.Argon2iEncoded, tv.Password, tv.Password},
 			wantUpdated: true,
 		},
 		{
 			name:        "hasher upgrade",
-			args:        args{tv.ScryptEncoded, tv.Password},
+			args:        args{tv.ScryptEncoded, tv.Password, tv.Password},
 			wantUpdated: true,
 		},
 		{
 			name:    "fail with error",
-			args:    args{`$mock$failErr`, tv.Password},
+			args:    args{`$mock$failErr`, tv.Password, tv.Password},
 			wantErr: true,
 		},
 		{
 			name:    "verifier bug",
-			args:    args{`$mock$bug`, tv.Password},
+			args:    args{`$mock$bug`, tv.Password, tv.Password},
 			wantErr: true,
 		},
 		{
 			name:    "multiple errors",
-			args:    args{"$argon2id$multi", tv.Password},
+			args:    args{"$argon2id$multi", tv.Password, tv.Password},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotUpdated, err := testSwapper.Verify(tt.args.encoded, tt.args.password)
+			gotUpdated, err := testSwapper.verifyAndUpdate(tt.args.encoded, tt.args.oldPassword, tt.args.newPassword)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Swapper.Verify() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Swapper.verifyAndUpdate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if (gotUpdated != "") != tt.wantUpdated {
-				t.Errorf("Swapper.Verify() = %v, want %v", gotUpdated, tt.wantUpdated)
+				t.Errorf("Swapper.verifyAndUpdate() = %v, want %v", gotUpdated, tt.wantUpdated)
 			}
 		})
 	}
