@@ -1,9 +1,6 @@
 package testvalues
 
-import (
-	"encoding/base64"
-	"strings"
-)
+import "encoding/base64"
 
 // Scrypt test values generated with scrypt.py
 const (
@@ -14,16 +11,5 @@ const (
 )
 
 var (
-	ScryptHash []byte
+	ScryptHash = parseBase64HashComponent(base64.RawStdEncoding, ScryptEncoded, 4)
 )
-
-func init() {
-	nodes := strings.Split(ScryptEncoded, "$")
-
-	var err error
-
-	ScryptHash, err = base64.RawStdEncoding.Strict().DecodeString(nodes[4])
-	if err != nil {
-		panic(err)
-	}
-}
