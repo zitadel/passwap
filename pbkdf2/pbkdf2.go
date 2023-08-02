@@ -64,17 +64,27 @@ type Params struct {
 var (
 	RecommendedSHA1Params = Params{
 		Rounds:  290000,
-		KeyLen:  20,
+		KeyLen:  sha1.Size,
+		SaltLen: 16,
+	}
+	RecommendedSHA224Params = Params{
+		Rounds:  290000,
+		KeyLen:  sha256.Size224,
 		SaltLen: 16,
 	}
 	RecommendedSHA256Params = Params{
 		Rounds:  290000,
-		KeyLen:  32,
+		KeyLen:  sha256.Size,
+		SaltLen: 16,
+	}
+	RecommendedSHA384Params = Params{
+		Rounds:  290000,
+		KeyLen:  sha512.Size384,
 		SaltLen: 16,
 	}
 	RecommendedSHA512Params = Params{
 		Rounds:  290000,
-		KeyLen:  64,
+		KeyLen:  sha512.Size,
 		SaltLen: 16,
 	}
 )
