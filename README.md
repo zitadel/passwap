@@ -4,15 +4,15 @@
 [![Go](https://github.com/zitadel/passwap/actions/workflows/go.yml/badge.svg)](https://github.com/zitadel/passwap/actions/workflows/go.yml)
 [![codecov](https://codecov.io/gh/zitadel/passwap/branch/main/graph/badge.svg?token=GrPT2nbCjj)](https://codecov.io/gh/zitadel/passwap)
 
-Package passwap provides a unified implementation between
+Package Passwap provides a unified implementation between
 different password hashing algorithms in the Go ecosystem.
 It allows for easy swapping between algorithms,
 using the same API for all of them.
 
-Passwords hashed with passwap, using a certain algorithm
+Passwords hashed with Passwap, using a certain algorithm
 and parameters can be stored in a database.
-If at a later moment paramers or even the algorithm is changed,
-passwap is still able to verify the "outdated" hashes and
+If at a later moment parameters or even the algorithm is changed,
+Passwap is still able to verify the "outdated" hashes and
 automatically return an updated hash when applicable.
 Only when an updated hash is returned, the record in the database
 needs to be updated.
@@ -37,7 +37,7 @@ needs to be updated.
 
 ### Encoding
 
-There is no unified standard for encoding password hashes. Essentialy one
+There is no unified standard for encoding password hashes. Essentially one
 would need to store the parameters used, salt and the resulting hash.
 As the salt and hash are typically raw bytes, they also need to be converted
 to characters, for example using base64.
@@ -46,25 +46,25 @@ All of the Passwap supplied algorithms use dollar sign (`$`) delimited
 encoding. This results in a single string containing all of the above for
 later password verification.
 
-It's origin can be found in
-[Glibc](https://man.archlinux.org/man/crypt.5). Passlib for python is the
+Its origin can be found in
+[Glibc](https://man.archlinux.org/man/crypt.5). Passlib for Python is the
 most complete implementation and there the
 [Modular Crypt Format](https://passlib.readthedocs.io/en/stable/modular_crypt_format.htm)
-expands the subject further. Althought MCF is superseeded by
+expands the subject further. Although MCF is superseded by
 the [Password Hashing Competition string format](https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md),
 passlib still provides the most complete documentation on the format and
 encodings used for each algorithm.
 
-Each althorithm supplied by Passwap is compatible with Passlib's encoding
+Each algorithm supplied by Passwap is compatible with Passlib's encoding
 and tested against reference hashes created with Passlib.
 
 ## Example
 
 First, we want our application to hash passwords using **bcrypt**,
 using the default cost. We will create a `Swapper` for it.
-When user would want to store `good_password` as a password,
+When a user would want to store `good_password` as a password,
 it is passed into `passwords.Hash()` and the result is typically
-stored in a database. In this case we keep it just in the `encoded` variable.
+stored in a database. In this case, we keep it just in the `encoded` variable.
 
 ```go
 passwords := passwap.NewSwapper(
@@ -80,16 +80,16 @@ fmt.Println(encoded)
 ```
 
 At this point `encoded` has the value of `$2a$10$eS.mS5Zc5YAJFlImXCpLMu9TxXwKUhgQxsbghlvyVwvwYO/17E2qy`.
-It is an encoded string containing the bcrypt identifier, cost, salt and hashed password which later
+It is an encoded string containing the **bcrypt** identifier, cost, salt and hashed password which later
 can be used for verification.
 
-At a later moment you can reconfigure your application to use another hashing algorithm.
+At a later moment, you can reconfigure your application to use another hashing algorithm.
 This might be because the former is cryptographically broken, customer demand
-or just because you can. Next we will create a new `Swapper` configured to hash using
+or just because you can. Next, we will create a new `Swapper` configured to hash using
 the **argon2id** algorithm.
 
 We already have users that have created passwords using **bcrypt**.
-As hashing is a one-way operation we can't migrate them untill they supply
+As hashing is a one-way operation we can't migrate them until they supply
 the password again. Therefore we must pass the `bcrypt.Verifier` as well.
 
 Once the user supplies his password again and we need to verify it,
@@ -126,14 +126,14 @@ fmt.Println(encoded)
 // $argon2id$v=19$m=65536,t=1,p=4$d6SOdxdIip9BC7sM5H7PUQ$2E7OIz7C1NkMLOsXi5nSe5vfbthdc9N9SWVlArd200E
 ```
 
-Now lets say that we upgraded our hardware with more powerfull CPUs.
+Now let's say that we upgraded our hardware with more powerful CPUs.
 We should now also increase the `time` parameter accordingly, so that
-the security of our hashes grow with the increased performance available
+the security of our hashes grows with the increased performance available
 on the market.
 
-In this case we do not need to supply a seperate `argon2.Verifier`,
+In this case, we do not need to supply a separate `argon2.Verifier`,
 as the returned `Hasher` from `NewArgon2id()` should already implement
-the `Verifier` interface for its own algorithm. We do keep the `bcrypt.Verifier`
+the `Verifier` interface for its algorithm. We do keep the `bcrypt.Verifier`
 around, because we might still have users that didn't use their password since the
 last update.
 
