@@ -139,7 +139,7 @@ func parse(encoded string) (*checker, error) {
 		return nil, nil
 	}
 
-	// scanning needs a space seperated string, instead of dollar signs.
+	// scanning needs a space separated string, instead of dollar signs.
 	encoded = strings.ReplaceAll(encoded, "$", " ")
 	var c checker
 

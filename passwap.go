@@ -89,7 +89,7 @@ func (e SkipErrors) Error() string {
 // Hasher or the cost parameters differ, an updated encoded hash
 // string is returned for the same (valid) password.
 // In all other cases updated remains empty.
-// When updated is not empty, it must be stored untill next use.
+// When updated is not empty, it must be stored until next use.
 func (s *Swapper) Verify(encoded, password string) (updated string, err error) {
 	return s.verifyAndUpdate(encoded, password, password)
 }

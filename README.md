@@ -3,6 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/zitadel/passwap.svg)](https://pkg.go.dev/github.com/zitadel/passwap)
 [![Go](https://github.com/zitadel/passwap/actions/workflows/go.yml/badge.svg)](https://github.com/zitadel/passwap/actions/workflows/go.yml)
 [![codecov](https://codecov.io/gh/zitadel/passwap/branch/main/graph/badge.svg?token=GrPT2nbCjj)](https://codecov.io/gh/zitadel/passwap)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zitadel/passwap)](https://goreportcard.com/report/github.com/zitadel/passwap)
 
 Package Passwap provides a unified implementation between
 different password hashing algorithms in the Go ecosystem.
