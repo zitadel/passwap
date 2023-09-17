@@ -133,6 +133,28 @@ func Test_parse(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:    "success std encoding",
+			encoded: tv.Pbkdf2Sha256StdEncoded,
+			want: &checker{
+				Params: testParamsSha256,
+				hash:   tv.Pbkdf2Sha256Hash,
+				salt:   []byte(tv.Salt),
+				hf:     sha256.New,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "success std encoding with padding",
+			encoded: tv.Pbkdf2Sha256StdEncodedPadding,
+			want: &checker{
+				Params: testParamsSha256,
+				hash:   tv.Pbkdf2Sha256Hash,
+				salt:   []byte(tv.Salt),
+				hf:     sha256.New,
+			},
+			wantErr: false,
+		},
 		/*
 			SHA-224 and SHA-384 are not implemented in passlib,
 			therefore there are no encoded strings to compare with.
