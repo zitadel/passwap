@@ -56,7 +56,7 @@ var (
 // See https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md.
 const Format = "$%s$v=%d$m=%d,t=%d,p=%d$%s$%s"
 
-// scanning needs a space seperated string, instead of dollar signs.
+// scanning needs a space separated string, instead of dollar signs.
 var scanFormat = strings.ReplaceAll(Format, "$", " ")
 
 var (
@@ -87,7 +87,7 @@ func parse(encoded string) (*checker, error) {
 		c       checker
 	)
 
-	// scanning needs a space seperated string, instead of dollar signs.
+	// scanning needs a space separated string, instead of dollar signs.
 	encoded = strings.ReplaceAll(encoded, "$", " ")
 
 	_, err := fmt.Sscanf(encoded, scanFormat, &c.id, &version, &c.Memory, &c.Time, &c.Threads, &salt, &hash)

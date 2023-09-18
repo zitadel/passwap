@@ -115,7 +115,7 @@ func parse(encoded string) (*checker, error) {
 		c    checker
 	)
 
-	// scanning needs a space seperated string, instead of dollar signs.
+	// scanning needs a space separated string, instead of dollar signs.
 	encoded = strings.ReplaceAll(encoded, "$", " ")
 
 	_, err := fmt.Sscanf(encoded, scanFormat, &c.id, &c.Rounds, &salt, &hash)
