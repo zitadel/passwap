@@ -122,17 +122,15 @@ func parse(encoded string) (*checker, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pbkdf2 parse: %w", err)
 	}
-
 	if c.hf = hashFuncForIdentifier(c.id); c.hf == nil {
 		return nil, fmt.Errorf("pbkdf2: unknown hash identifier %s", c.id)
 	}
 
-	c.salt, err = encoding.Pbkdf2B64.Strict().DecodeString(salt)
+	c.salt, err = encoding.AutoDecodePbkdf2(salt)
 	if err != nil {
 		return nil, fmt.Errorf("pbkdf2 parse salt: %w", err)
 	}
-
-	c.hash, err = encoding.Pbkdf2B64.Strict().DecodeString(hash)
+	c.hash, err = encoding.AutoDecodePbkdf2(hash)
 	if err != nil {
 		return nil, fmt.Errorf("pbkdf2 parse hash: %w", err)
 	}
@@ -157,6 +155,10 @@ type Hasher struct {
 }
 
 // Hash implements passwap.Hasher.
+// Salt and password hashes are encoded using the alternative
+// base64 encoding as defined by passlib.
+// This is standard encoding with `+` replaced by `.`
+// without padding.
 func (h *Hasher) Hash(password string) (string, error) {
 	salt, err := salt.New(h.rand, h.p.SaltLen)
 	if err != nil {
@@ -229,6 +231,11 @@ func NewSHA512(p Params) *Hasher {
 // to verify password against its hash.
 // The HMAC message authentication scheme is taken from the encoded string.
 // Currently SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 are suppored.
+//
+// Verify accepts hash and password encoding in standard base 64 or
+// the alternative base64 encoding as defined by passlib.
+// This is standard encoding with `+` replaced by `.`
+// without padding.
 func Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
 	if err != nil || c == nil {
