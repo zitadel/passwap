@@ -49,14 +49,14 @@ would need to store the parameters used, salt and the resulting hash.
 As the salt and hash are typically raw bytes, they also need to be converted
 to characters, for example using base64.
 
-All of the Passwap supplied algorithms use dollar sign (`$`) delimited
+All of the Passwap supplied algorithms use the dollar sign (`$`) delimited
 encoding, aka [Modular Crypt Format](https://passlib.readthedocs.io/en/stable/modular_crypt_format.htm).
 This results in a single string containing all of the above for
 later password verification.
 
 #### Argon2
 
-Argon2 uses standard raw base64 encoding (no padding) for salt and hash.
+Argon2 uses standard raw Base64 encoding (without padding) for salt and hash.
 The resulting Modular Crypt Format string looks as follows:
 
 ```
@@ -64,22 +64,21 @@ $argon2i$v=19$m=4096,t=3,p=1$cmFuZG9tc2FsdGlzaGFyZA$YMvo8AUoNtnKYGqeODruCjHdiEbl
    (1)              (2)               (3)                            (4)
 ```
 
-Where:
 
-1. Identifier, which can be `argon2i` or `argon2id`. `argon2d` is not supported by Go and therefore not this library.
+1. The identifier, which can be `argon2i` or `argon2id`. `argon2d`, is not supported by Go, and therefore, is not supported by this library either.
 2. Cost parameters.
-   1. `m` for memory, `4096` KiB in this example.
-   2. `t` for time, `3` in this example.
-   3. `p` for parallelism (threads), `1` in this example.
-3. Base64 encoded Salt.
+   1. `m` for memory -`4096` KiB in this example.
+   2. `t` for time - `3` in this example.
+   3. `p` for parallelism (threads) - `1` in this example.
+3. Base64 encoded salt.
 4. Base64 encoded Argon2 hash output of the password and salt combined.
 
 Changing any of the parameters or salt produces a different hash output.
-More information about the parameters can be found in the upstream [argon2 package documentation](https://pkg.go.dev/golang.org/x/crypto/argon2).
+More information about the parameters can be found in the upstream [Argon2 package documentation](https://pkg.go.dev/golang.org/x/crypto/argon2).
 
 ### Bcrypt
 
-Bcrypt uses a custom base64 encoding with the character set of `[./A-Za-z0-9]` and padding.
+Bcrypt uses a custom Base64 encoding with the character set of `[./A-Za-z0-9]` and padding.
 The actual formatting is fully implemented by the [Go package](https://pkg.go.dev/golang.org/x/crypto/bcrypt).
 The resulting Modular Crypt Format string looks as follows:
 
@@ -88,17 +87,15 @@ $2a$12$aLYFkieuqJyeynvptPTxpehSViui5WeAPuR2Xw1wui9CPHEaacmFq
  (1)(2)          (3)                      (4)
 ```
 
-Where:
-
-1. Identifier, which can be `2a`, `2b` or `2y`. It indicates the bcrypt version but is in fact ignored and the same is always produced.
-2. Cost parameter that is exponential. `12` in this example.
-3. Base64 encoded salt, always 22 character long.
-4. Base86 encoded Bcrypt hash output of the password and salt combined.
+1. The identifier can be `2a`, `2b` or, `2y`. It indicates the Bcrypt version but is ignored and the same is always produced.
+2. The cost parameter that is exponential - `12` in this example.
+3. The Base64-encoded salt, always 22 character long.
+4. The Base64-encoded Bcrypt hash output of the password and salt combined. 
 
 
-### md5
+### MD5
 
-md5 uses its own encoding scheme part of the [hashing algorithm](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.md5_crypt.html#algorithm). It uses a similar alphabet as Base64 but does additional shuffling of bytes.
+MD5 uses its own encoding scheme, which is part of the [hashing algorithm](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.md5_crypt.html#algorithm). It uses a similar alphabet as Base64 but performs an additional shuffling of bytes.
 The resulting Modular Crypt Format string looks as follows:
 
 ```
@@ -106,17 +103,15 @@ $1$kJ4QkJaQ$3EbD/pJddrq5HW3mpZ4KZ1
 (1)   (2)           (3)
 ```
 
-Where:
+1. The identifier is always `1`
+2. Base64-like-encoded salt.
+3. Base64-like-encoded MD5 hash output of the password and salt combined.
 
-1. Identifier, which is always `1`
-2. Base64-ish encoded salt.
-3. Base64-ish encoded md5 hash output of the password and salt combined.
-
-There is no cost parameter for md5. md5 is old, considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
+There is no cost parameter for MD5 because MD5 is old and is considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
 
 ### Scrypt
 
-scrypt uses standard raw base64 encoding (no padding) for salt and hash.
+Scrypt uses standard raw Base64 encoding (no padding) for the salt and hash.
 The resulting Modular Crypt Format string looks as follows:
 
 ```
@@ -124,19 +119,17 @@ $scrypt$ln=16,r=8,p=1$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ
   (1)        (2)              (3)                              (4)
 ```
 
-Where:
-
-1. Identifier, which is always `scrypt`.
+1. The identifier is always `scrypt`.
 2. Cost parameters:
-   1. `ln` is the exponential cost parameter for memory and CPU. `16` in this example.
-   2. `r` block size for optimal performance of the CPU architecture. `8` in this example.
-   3. `p` parallelism. `1` in this example.
-3. Base64 encoded salt
-4. Base86 encoded Scrypt hash output of the password and salt combined.
+   1. `ln` is the exponential cost parameter for memory and CPU - `16` in this example.
+   2. `r` is the block size for optimal performance of the CPU architecture - `8` in this example.
+   3. `p` is to indicate parallelism - `1` in this example.
+3. Base64-encoded salt
+4. Base64-encoded Scrypt hash output of the password and salt combined.
 
-### pbkdf2
+### PBKDF2
 
-pbkdf2 uses an alternative base64 encoding which is based on the standard with `+` replaced by `.` and without padding. As we've seen also standard encoding with padding in the wild, the verifier will accept alternative, standard with and without padding. The Hasher always produces alternative encoding.
+PBKDF2 uses an alternative Base64 encoding, which is based on the standard with `+` replaced by `.`, and it comes without padding. As we've also seen standard encoding with padding in the wild, the verifier will accept alternative standards with or without padding. The Hasher always produces alternative encoding.
 
 The resulting Modular Crypt Format string looks as follows:
 
@@ -145,12 +138,12 @@ $pbkdf2-sha256$12$cmFuZG9tc2FsdGlzaGFyZA$OFvEcLOIPFd/oq8egf10i.qJLI7A8nDjPLnolCW
       (1)     (2)         (3)                            (4)
 ```
 
-1. Identifier made of 2 parts:
-   1. `pbkdf2` is identifier prefix for the algorithm.
-   2. `-sha256` optional suffix with dash separator and the identifier for the hash backend. When omitted `sha1` is used as a default.
-2. Cost parameter in rounds. Linear value. `12` in this example.
-3. Alternative base64 encoded salt
-4. Alternative base86 encoded Scrypt hash output of the password and salt combined.
+1. The identifier is made of 2 parts:
+   1. `pbkdf2` is the identifier prefix for the algorithm.
+   2. `-sha256` is an optional suffix with dash separator and is the identifier for the hash backend. When omitted, `sha1` is used as a default.
+2. The cost parameter in rounds, which is a linear value - `12` in this example.
+3. Alternative Base64-encoded salt
+4. Alternative Base64 encoded Scrypt hash output of the password and salt combined.
 
 #### Reference
 
