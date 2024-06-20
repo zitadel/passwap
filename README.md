@@ -20,10 +20,10 @@ needs to be updated.
 
 ## Features
 
-* Secure salt generation (from `crypto/rand`) for all algorithms included.
-* Automatic update of passwords.
-* Only [depends](go.mod) on the Go standard library and `golang.org/x/{sys,crypto}`.
-* The `Hasher` and `Verifier` interfaces allow the use of custom algorithms and
+- Secure salt generation (from `crypto/rand`) for all algorithms included.
+- Automatic update of passwords.
+- Only [depends](go.mod) on the Go standard library and `golang.org/x/{sys,crypto}`.
+- The `Hasher` and `Verifier` interfaces allow the use of custom algorithms and
   encoding schemes.
 
 ### Algorithms
@@ -33,14 +33,16 @@ needs to be updated.
 | [argon2][1]    | argon2i, argon2id                                                  | :heavy_check_mark: |
 | [bcrypt][2]    | 2, 2a, 2b, 2y                                                      | :heavy_check_mark: |
 | [md5-crypt][3] | 1                                                                  | :x:                |
-| [scrypt][4]    | scrypt, 7                                                          | :heavy_check_mark: |
-| [pbkpdf2][5]   | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
+| [md5 plain][4] | Hex encoded string                                                 | :x:                |
+| [scrypt][5]    | scrypt, 7                                                          | :heavy_check_mark: |
+| [pbkpdf2][6]   | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
 
 [1]: https://pkg.go.dev/github.com/zitadel/passwap/argon2
 [2]: https://pkg.go.dev/github.com/zitadel/passwap/bcrypt
 [3]: https://pkg.go.dev/github.com/zitadel/passwap/md5
-[4]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
-[5]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
+[4]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
+[5]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
+[6]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
 
 ### Encoding
 
@@ -63,7 +65,6 @@ The resulting Modular Crypt Format string looks as follows:
 $argon2i$v=19$m=4096,t=3,p=1$cmFuZG9tc2FsdGlzaGFyZA$YMvo8AUoNtnKYGqeODruCjHdiEbl1pKL2MsYy9VgU/E
    (1)              (2)               (3)                            (4)
 ```
-
 
 1. The identifier, which can be `argon2i` or `argon2id`. `argon2d`, is not supported by Go, and therefore, is not supported by this library either.
 2. Cost parameters.
@@ -90,12 +91,11 @@ $2a$12$aLYFkieuqJyeynvptPTxpehSViui5WeAPuR2Xw1wui9CPHEaacmFq
 1. The identifier can be `2a`, `2b` or, `2y`. It indicates the Bcrypt version but is ignored and the same is always produced.
 2. The cost parameter that is exponential - `12` in this example.
 3. The Base64-encoded salt, always 22 character long.
-4. The Base64-encoded Bcrypt hash output of the password and salt combined. 
+4. The Base64-encoded Bcrypt hash output of the password and salt combined.
 
+### MD5 Crypt
 
-### MD5
-
-MD5 uses its own encoding scheme, which is part of the [hashing algorithm](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.md5_crypt.html#algorithm). It uses a similar alphabet as Base64 but performs an additional shuffling of bytes.
+MD5 Crypt uses its own encoding scheme, which is part of the [hashing algorithm](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.md5_crypt.html#algorithm). It uses a similar alphabet as Base64 but performs an additional shuffling of bytes.
 The resulting Modular Crypt Format string looks as follows:
 
 ```
@@ -108,6 +108,18 @@ $1$kJ4QkJaQ$3EbD/pJddrq5HW3mpZ4KZ1
 3. Base64-like-encoded MD5 hash output of the password and salt combined.
 
 There is no cost parameter for MD5 because MD5 is old and is considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
+
+### MD5 Plain
+
+MD5 Plain are hex encoded digests of a single iteration of a password without salt.
+For example passwap can verify passwords hashed by the following methods:
+
+- `printf "password" | md5sum` on most linux systems.
+- PHP's `md5("password")`
+- Python3's `hashlib.md5(b"password").hexdigest()`
+
+MD5 is considered cryptographically broken and insecure. Also hashing without salt is a bad idea.
+Therefore passwap only supports verification to allow applications to migrate to better methods.
 
 ### Scrypt
 
