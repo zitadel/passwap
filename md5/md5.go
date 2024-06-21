@@ -1,5 +1,9 @@
-// Package md5 provides hashing and verification or
-// md5Crypt encoded passwords.
+// Package md5 provides hashing and verification of
+// md5Crypt encoded passwords with salt.
+// [The algorithm](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.md5_crypt.html#algorithm)
+// builds hashes through multiple digest iterations
+// with shuffles of password and salt.
+//
 // Note that md5 is considered cryptographically broken
 // and should not be used for new applications.
 // This package is only provided for legacy applications
