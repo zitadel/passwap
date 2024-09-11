@@ -361,6 +361,17 @@ func TestHasher_Verify(t *testing.T) {
 			want: verifier.OK,
 		},
 		{
+			name: "sha256, padded, ok",
+			h: Hasher{
+				p: testParamsSha256,
+			},
+			args: args{
+				tv.Pbkdf2Sha256StdEncodedPadding,
+				tv.Password,
+			},
+			want: verifier.OK,
+		},
+		{
 			name: "sha512, ok",
 			h: Hasher{
 				p: testParamsSha512,
@@ -495,6 +506,14 @@ func TestVerify(t *testing.T) {
 			name: "sha256, ok",
 			args: args{
 				tv.Pbkdf2Sha256Encoded,
+				tv.Password,
+			},
+			want: verifier.OK,
+		},
+		{
+			name: "sha256, padded, ok",
+			args: args{
+				tv.Pbkdf2Sha256StdEncodedPadding,
 				tv.Password,
 			},
 			want: verifier.OK,
