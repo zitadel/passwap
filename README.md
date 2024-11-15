@@ -284,8 +284,9 @@ Versions that also build are marked with :warning:.
 | ------- | ------------------ |
 | <1.20   | :x:                |
 | 1.20    | :warning:          |
-| 1.21    | :white_check_mark: |
+| 1.21    | :warning:          |
 | 1.22    | :white_check_mark: |
+| 1.23    | :white_check_mark: |
 
 ## License
 
