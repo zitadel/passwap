@@ -282,11 +282,9 @@ Versions that also build are marked with :warning:.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| <1.20   | :x:                |
-| 1.20    | :warning:          |
-| 1.21    | :warning:          |
-| 1.22    | :white_check_mark: |
+| <1.23   | :x:                |
 | 1.23    | :white_check_mark: |
+| 1.24    | :white_check_mark: |
 
 ## License
 
