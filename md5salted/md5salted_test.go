@@ -1,10 +1,10 @@
 package md5salted
 
 import (
-	"github.com/zitadel/passwap/internal/testvalues"
 	"reflect"
 	"testing"
 
+        "github.com/zitadel/passwap/internal/testvalues"
 	"github.com/zitadel/passwap/verifier"
 )
 
