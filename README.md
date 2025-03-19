@@ -28,21 +28,23 @@ needs to be updated.
 
 ### Algorithms
 
-| Algorithm      | Identifiers                                                        | Secure             |
-| -------------- | ------------------------------------------------------------------ | ------------------ |
-| [argon2][1]    | argon2i, argon2id                                                  | :heavy_check_mark: |
-| [bcrypt][2]    | 2, 2a, 2b, 2y                                                      | :heavy_check_mark: |
-| [md5-crypt][3] | 1                                                                  | :x:                |
-| [md5 plain][4] | Hex encoded string                                                 | :x:                |
-| [scrypt][5]    | scrypt, 7                                                          | :heavy_check_mark: |
-| [pbkpdf2][6]   | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
+| Algorithm       | Identifiers                                                        | Secure             |
+|-----------------|--------------------------------------------------------------------| ------------------ |
+| [argon2][1]     | argon2i, argon2id                                                  | :heavy_check_mark: |
+| [bcrypt][2]     | 2, 2a, 2b, 2y                                                      | :heavy_check_mark: |
+| [md5-crypt][3]  | 1                                                                  | :x:                |
+| [md5 plain][4]  | Hex encoded string                                                 | :x:                |
+| [md5 salted][5] | md5salted-suffix,md5salted-prefix                                  | :x:                |
+| [scrypt][6]     | scrypt, 7                                                          | :heavy_check_mark: |
+| [pbkpdf2][7]    | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
 
 [1]: https://pkg.go.dev/github.com/zitadel/passwap/argon2
 [2]: https://pkg.go.dev/github.com/zitadel/passwap/bcrypt
 [3]: https://pkg.go.dev/github.com/zitadel/passwap/md5
 [4]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
-[5]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
-[6]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
+[5]: https://pkg.go.dev/github.com/zitadel/passwap/md5salted
+[6]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
+[7]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
 
 ### Encoding
 
@@ -120,6 +122,22 @@ For example passwap can verify passwords hashed by the following methods:
 
 MD5 is considered cryptographically broken and insecure. Also hashing without salt is a bad idea.
 Therefore passwap only supports verification to allow applications to migrate to better methods.
+
+### MD5 Salted
+
+MD5 Salted are base64 encode digest of password+salt (resp. salt+password)
+The resulting MD5salted Format string looks as follows:
+
+```
+$md5salted-suffix$kJ4QkJaQ$3EbD/pJddrq5HW3mpZ4KZ1
+(1)                  (2)          (3)
+```
+
+1. The identifier is md5salted-suffix or md5salted-prefix
+2. Salt string (will be added to password in exactly this form).
+3. Base64-like-encoded MD5 hash output of the password and salt combined (password+salt or salt+password).
+
+There is no cost parameter for MD5 because MD5 is old and is considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
 
 ### Scrypt
 
