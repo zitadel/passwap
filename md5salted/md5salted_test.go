@@ -42,7 +42,7 @@ func Test_parse(t *testing.T) {
 		},
 		{
 			name:    "wrong identifier",
-			args:    args{"$md5salted-unknow$foo$foo"},
+			args:    args{"$md5salted-unknown$foo$foo"},
 			wantErr: true,
 		},
 		{
