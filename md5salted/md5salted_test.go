@@ -104,6 +104,12 @@ func Test_checker_verify(t *testing.T) {
 			encoded: MD5SaltedEncodedP,
 		},
 		{
+			name:    "hash decode error",
+			args:    args{Password},
+			want:    verifier.Skip,
+			encoded: "$md5salted-prefix$c2FsdA==$~~~~~~~",
+		},
+		{
 			name:    "wrong password suffix",
 			args:    args{"foobar"},
 			want:    verifier.Fail,
