@@ -81,7 +81,7 @@ func (c *checker) verify(password string) (verifier.Result, error) {
 	), nil
 }
 
-// Verify parses encoded and verfies password against the checksum.
+// Verify parses encoded and verifies password against the checksum.
 func Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
 	if err != nil || c == nil {
