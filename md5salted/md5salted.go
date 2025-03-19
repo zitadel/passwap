@@ -64,7 +64,7 @@ func parse(encoded string) (*checker, error) {
 	}
 	c.setSaltPasswFunc(id)
 	if c.saltpasswfunc == nil {
-		return nil, fmt.Errorf("md5salted unknow identifier: %s", id)
+		return nil, fmt.Errorf("md5salted unknown identifier: %s", id)
 	}
 	return &c, nil
 }
