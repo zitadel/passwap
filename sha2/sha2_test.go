@@ -227,7 +227,7 @@ func TestHasher_Hash(t *testing.T) {
 		{
 			name: "succes",
 			rand: strings.NewReader("saltsaltsaltsalt"),
-			want: "$6$rounds=10000$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want: "$6$rounds=10000$n34PoBLMgFrQVl4R$7.cb7CLz8wagvy7HkLZ8dcil04pgps4hbri2LxtxwEUvf82JeV07F65sPWlHuwPBoVO6q49Az1vHmyvfmxw6Z/",
 		},
 	}
 

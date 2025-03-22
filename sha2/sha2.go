@@ -228,7 +228,6 @@ func parse(hash string) (*checker, error) {
 
 func (c *checker) verify(password string) verifier.Result {
 	passwordHash := createHash(c.use512, []byte(password), c.salt, c.rounds)
-	fmt.Printf("Debug: rounds=%v\n", string(passwordHash))
 	res := subtle.ConstantTimeCompare(passwordHash, c.hash)
 
 	return verifier.Result(res)
@@ -244,12 +243,12 @@ type Hasher struct {
 // Hash implements passwap.Hasher.
 func (h *Hasher) Hash(password string) (string, error) {
 	salt, err := salt.New(h.rand, 16)
-	fmt.Printf("Debug: rounds=%v\n", string(salt))
 	if err != nil {
 		return "", fmt.Errorf("sha2: %w", err)
 	}
 
-	encoded := createHash(h.use512, []byte(password), salt, h.rounds)
+	encSalt := encoding.EncodeCrypt3(salt)
+	encoded := createHash(h.use512, []byte(password), encSalt, h.rounds)
 
 	return string(encoded), nil
 }
