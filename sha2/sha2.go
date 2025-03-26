@@ -193,7 +193,8 @@ type checker struct {
 
 func parse(hash string) (*checker, error) {
 	parts := strings.Split(hash, "$")
-	if len(parts) < 4 {
+	partsLen := len(parts) - 1
+	if partsLen < 3 || partsLen > 4 {
 		return nil, fmt.Errorf("invalid format")
 	}
 
@@ -215,10 +216,6 @@ func parse(hash string) (*checker, error) {
 		i++
 	} else {
 		checker.rounds = RoundsDefault
-	}
-
-	if i+1 >= len(parts) {
-		return nil, fmt.Errorf("invalid format")
 	}
 
 	checker.salt = []byte(parts[i])

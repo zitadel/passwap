@@ -131,6 +131,26 @@ func Test_createHash256(t *testing.T) {
 	}
 }
 
+func Test_calcRounds(t *testing.T) {
+	tests := []struct {
+		input int
+		want  int
+	}{
+		{2000, 2000},
+		{1000, 1000},
+		{999999999, 999999999},
+		{4, RoundsMin},
+		{1000000000, RoundsMax},
+	}
+
+	for _, tt := range tests {
+		got := calcRounds(tt.input)
+		if got != tt.want {
+			t.Errorf("calcRounds() got = %v, want %v", got, tt.want)
+		}
+	}
+}
+
 func Test_parse(t *testing.T) {
 	tests := []struct {
 		input   string
@@ -144,35 +164,36 @@ func Test_parse(t *testing.T) {
 		{"$5$saltvalue$hasheddata", false, RoundsDefault, "saltvalue", "hasheddata", false},
 		{"$6$salt$encodedhash", true, RoundsDefault, "salt", "encodedhash", false},
 		{"$5$rounds=20000$salt$hash", false, 20000, "salt", "hash", false},
-		{"$2$rounds=10000$somesalt$hashvaluehere", false, RoundsDefault, "", "", true}, // Invalid identiefier
-		{"$6$rounds=abc$salt$hash", false, RoundsDefault, "", "", true},                // Invalid rounds
-		{"$6$salt", false, RoundsDefault, "", "", true},                                // Missing encoded part
-		{"invalidhash", false, RoundsDefault, "", "", true},                            // Completely invalid format
+		{"$2$rounds=10000$somesalt$hashvaluehere", false, RoundsDefault, "", "", true},  // Invalid identiefier
+		{"$6$rounds=abc$salt$hash", false, RoundsDefault, "", "", true},                 // Invalid rounds
+		{"$6$salt", false, RoundsDefault, "", "", true},                                 // Missing encoded part
+		{"invalidhash", false, RoundsDefault, "", "", true},                             // Completely invalid format
+		{"$6$rounds=10000$some$salt$hashvaluehere", false, RoundsDefault, "", "", true}, // Too many $
 	}
 
 	for _, tt := range tests {
 		c, err := parse(tt.input)
 
 		if (err != nil) != tt.wantErr {
-			t.Errorf("parse() error = %v, wantErr %v", err, tt.wantErr)
+			t.Errorf("parse(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 			return
 		}
 
 		if c != nil {
 			if c.use512 != tt.use512 {
-				t.Errorf("parseHash(%q) use512 = %v, want %v", tt.input, c.use512, tt.use512)
+				t.Errorf("parse(%q) use512 = %v, want %v", tt.input, c.use512, tt.use512)
 			}
 
 			if c.rounds != tt.rounds {
-				t.Errorf("parseHash(%q) rounds = %v, want %v", tt.input, c.rounds, tt.rounds)
+				t.Errorf("parse(%q) rounds = %v, want %v", tt.input, c.rounds, tt.rounds)
 			}
 
 			if string(c.salt) != tt.salt {
-				t.Errorf("parseHash(%q) salt = %q, want %q", tt.input, c.salt, tt.salt)
+				t.Errorf("parse(%q) salt = %q, want %q", tt.input, c.salt, tt.salt)
 			}
 
 			if string(c.hash) != tt.input {
-				t.Errorf("parseHash(%q) encoded = %q, want %q", tt.input, c.hash, tt.input)
+				t.Errorf("parse(%q) encoded = %q, want %q", tt.input, c.hash, tt.input)
 			}
 		}
 	}
