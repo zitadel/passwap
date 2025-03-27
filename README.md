@@ -29,22 +29,24 @@ needs to be updated.
 ### Algorithms
 
 | Algorithm       | Identifiers                                                        | Secure             |
-|-----------------|--------------------------------------------------------------------| ------------------ |
+| --------------- | ------------------------------------------------------------------ | ------------------ |
 | [argon2][1]     | argon2i, argon2id                                                  | :heavy_check_mark: |
 | [bcrypt][2]     | 2, 2a, 2b, 2y                                                      | :heavy_check_mark: |
 | [md5-crypt][3]  | 1                                                                  | :x:                |
 | [md5 plain][4]  | Hex encoded string                                                 | :x:                |
 | [md5 salted][5] | md5salted-suffix,md5salted-prefix                                  | :x:                |
-| [scrypt][6]     | scrypt, 7                                                          | :heavy_check_mark: |
-| [pbkpdf2][7]    | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
+| [sha2-crypt][6] | 5, 6                                                               | :heavy_check_mark: |
+| [scrypt][7]     | scrypt, 7                                                          | :heavy_check_mark: |
+| [pbkpdf2][8]    | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
 
 [1]: https://pkg.go.dev/github.com/zitadel/passwap/argon2
 [2]: https://pkg.go.dev/github.com/zitadel/passwap/bcrypt
 [3]: https://pkg.go.dev/github.com/zitadel/passwap/md5
 [4]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
 [5]: https://pkg.go.dev/github.com/zitadel/passwap/md5salted
-[6]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
-[7]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
+[6]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
+[7]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
+[8]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
 
 ### Encoding
 
@@ -138,6 +140,21 @@ $md5salted-suffix$kJ4QkJaQ$3EbD/pJddrq5HW3mpZ4KZ1
 3. Base64-like-encoded MD5 hash output of the password and salt combined (password+salt or salt+password).
 
 There is no cost parameter for MD5 because MD5 is old and is considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
+
+### SHA2 crypt
+
+SHA2 Crypt shares its encoding scheme with MD5 Crypt, but uses SHA-256 or SHA-512 instead of MD5 and uses a different [hashing algorithm](https://www.akkadia.org/drepper/SHA-crypt.txt)
+The resulting Modular Crypt Format string looks as follows:
+
+```
+$5$rounds=5000$RPvilwjD1ebXJfzg$5B8vYYiY.CVt1RlTTf8KbXBH3hsxY/GNooZaBBGWEc5
+(1)   (2)           (3)                 (4)
+```
+
+1. The identifier is always `5` (SHA-256) or `6` (SHA-512)
+2. The cost parameter in rounds, which is a linear value - `5000` in this example. Note that according to the specification this part is optional (in which case the default of 5000 rounds will be used). In this implementation the rounds are always returned, even when they match the default
+3. Base64-like-encoded salt.
+4. Base64-like-encoded SHA-256/512 hash output of the password and salt combined.
 
 ### Scrypt
 

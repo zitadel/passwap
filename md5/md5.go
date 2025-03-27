@@ -18,6 +18,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/zitadel/passwap/internal/encoding"
 	"github.com/zitadel/passwap/internal/salt"
 	"github.com/zitadel/passwap/verifier"
 )
@@ -29,28 +30,7 @@ const (
 	// Format of the Modular Crypt Format, as used by passlib.
 	// See https://passlib.readthedocs.io/en/stable/lib/passlib.hash.md5_crypt.html#format
 	Format = Prefix + "%s$%s"
-
-	// Encoding is the character set used for encoding salt and checksum.
-	Encoding = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 )
-
-func encode(raw []byte) []byte {
-	dest := make([]byte, 0, (len(raw)*8+6-1)/6)
-
-	v := uint(0)
-	bits := uint(0)
-
-	for _, b := range raw {
-		v |= (uint(b) << bits)
-
-		for bits = bits + 8; bits > 6; bits -= 6 {
-			dest = append(dest, Encoding[v&63])
-			v >>= 6
-		}
-	}
-	dest = append(dest, Encoding[v&63])
-	return dest
-}
 
 var swaps = [md5.Size]int{12, 6, 0, 13, 7, 1, 14, 8, 2, 15, 9, 3, 5, 10, 4, 11}
 
@@ -113,7 +93,7 @@ func checksum(password, salt []byte) []byte {
 		swapped[i] = hash[j]
 	}
 
-	return encode(swapped)
+	return encoding.EncodeCrypt3(swapped)
 }
 
 // 6 saltbytes result in 8 characters of encoded salt.
@@ -125,7 +105,7 @@ func hash(r io.Reader, password string) (string, error) {
 		return "", fmt.Errorf("md5: %w", err)
 	}
 
-	encSalt := encode(salt)
+	encSalt := encoding.EncodeCrypt3(salt)
 
 	checksum := checksum([]byte(password), encSalt)
 	return fmt.Sprintf(Format, encSalt, checksum), nil
