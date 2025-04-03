@@ -47,3 +47,47 @@ func TestEncodeCrypt3(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeInt6(t *testing.T) {
+	tests := []struct {
+		input byte
+		want  int
+	}{
+		{'A', 12},
+		{'z', 63},
+		{'0', 2},
+		{'.', 0},
+		{'/', 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.input), func(t *testing.T) {
+			got := DecodeInt6(tc.input)
+			if got != tc.want {
+				t.Errorf("DecodeInt6(%q) = %d, want %d", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestEncodeInt6(t *testing.T) {
+	tests := []struct {
+		input int
+		want  byte
+	}{
+		{12, 'A'},
+		{63, 'z'},
+		{2, '0'},
+		{0, '.'},
+		{1, '/'},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.want), func(t *testing.T) {
+			got := EncodeInt6(tc.input)
+			if got != tc.want {
+				t.Errorf("EncodeInt6(%d) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
