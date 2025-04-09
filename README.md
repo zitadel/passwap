@@ -35,18 +35,20 @@ needs to be updated.
 | [md5-crypt][3]  | 1                                                                  | :x:                |
 | [md5 plain][4]  | Hex encoded string                                                 | :x:                |
 | [md5 salted][5] | md5salted-suffix,md5salted-prefix                                  | :x:                |
-| [sha2-crypt][6] | 5, 6                                                               | :heavy_check_mark: |
-| [scrypt][7]     | scrypt, 7                                                          | :heavy_check_mark: |
-| [pbkpdf2][8]    | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
+| [phpass][6]     | P, H                                                               | :x:                |
+| [sha2-crypt][7] | 5, 6                                                               | :heavy_check_mark: |
+| [scrypt][8]     | scrypt, 7                                                          | :heavy_check_mark: |
+| [pbkpdf2][9]    | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
 
 [1]: https://pkg.go.dev/github.com/zitadel/passwap/argon2
 [2]: https://pkg.go.dev/github.com/zitadel/passwap/bcrypt
 [3]: https://pkg.go.dev/github.com/zitadel/passwap/md5
 [4]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
 [5]: https://pkg.go.dev/github.com/zitadel/passwap/md5salted
-[6]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
-[7]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
-[8]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
+[5]: https://pkg.go.dev/github.com/zitadel/passwap/phpass
+[7]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
+[8]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
+[9]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
 
 ### Encoding
 
@@ -140,6 +142,23 @@ $md5salted-suffix$kJ4QkJaQ$3EbD/pJddrq5HW3mpZ4KZ1
 3. Base64-like-encoded MD5 hash output of the password and salt combined (password+salt or salt+password).
 
 There is no cost parameter for MD5 because MD5 is old and is considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
+
+### PHPass
+
+[PHPass](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.phpass.html?highlight=php#passlib.hash.phpass) is an algorithm used primarily in PHP application (e.g. WordPress).
+The resulting Modular Crypt Format string looks as follows:
+
+```
+$P$8ohUJ.1sdFw09/bMaAQPTGDNi2BIUt1
+(1)(2)  (3)       (4)
+```
+
+1. The identifier is `P`, except for phpBB3 databases, which use `H`
+2. The rounds as a single character
+3. Salt with a length of 8 characters
+4. Base64-like-encoded MDF hash output
+
+This algorithm is old and is considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
 
 ### SHA2 crypt
 
