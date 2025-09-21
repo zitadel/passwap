@@ -32,23 +32,25 @@ needs to be updated.
 | --------------- | ------------------------------------------------------------------ | ------------------ |
 | [argon2][1]     | argon2i, argon2id                                                  | :heavy_check_mark: |
 | [bcrypt][2]     | 2, 2a, 2b, 2y                                                      | :heavy_check_mark: |
-| [md5-crypt][3]  | 1                                                                  | :x:                |
-| [md5 plain][4]  | Hex encoded string                                                 | :x:                |
-| [md5 salted][5] | md5salted-suffix,md5salted-prefix                                  | :x:                |
-| [phpass][6]     | P, H                                                               | :x:                |
-| [sha2-crypt][7] | 5, 6                                                               | :heavy_check_mark: |
-| [scrypt][8]     | scrypt, 7                                                          | :heavy_check_mark: |
-| [pbkpdf2][9]    | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
+| [drupal7][3]    | S                                                                  | :x:                |
+| [md5-crypt][4]  | 1                                                                  | :x:                |
+| [md5 plain][5]  | Hex encoded string                                                 | :x:                |
+| [md5 salted][6] | md5salted-suffix,md5salted-prefix                                  | :x:                |
+| [phpass][7]     | P, H                                                               | :x:                |
+| [sha2-crypt][8] | 5, 6                                                               | :heavy_check_mark: |
+| [scrypt][9]     | scrypt, 7                                                          | :heavy_check_mark: |
+| [pbkpdf2][10]   | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
 
 [1]: https://pkg.go.dev/github.com/zitadel/passwap/argon2
 [2]: https://pkg.go.dev/github.com/zitadel/passwap/bcrypt
-[3]: https://pkg.go.dev/github.com/zitadel/passwap/md5
-[4]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
-[5]: https://pkg.go.dev/github.com/zitadel/passwap/md5salted
-[5]: https://pkg.go.dev/github.com/zitadel/passwap/phpass
-[7]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
-[8]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
-[9]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
+[3]: https://pkg.go.dev/github.com/zitadel/passwap/drupal7
+[4]: https://pkg.go.dev/github.com/zitadel/passwap/md5
+[5]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
+[6]: https://pkg.go.dev/github.com/zitadel/passwap/md5salted
+[7]: https://pkg.go.dev/github.com/zitadel/passwap/phpass
+[8]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
+[9]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
+[10]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
 
 ### Encoding
 
@@ -159,6 +161,23 @@ $P$8ohUJ.1sdFw09/bMaAQPTGDNi2BIUt1
 4. Base64-like-encoded MDF hash output
 
 This algorithm is old and is considered too light and insecure. It is provided to verify and migrate to a better algorithm. Do not use for new hashes.
+
+### Drupal 7
+
+[Drupal 7](https://www.drupal.org/) Uses SHA-512 with salt and custom encoding.
+The resulting Modular Crypt Format string looks as follows:
+
+```
+$S$ECDgn4Og5K1g.zVRmF132EW0HfJZ5oaTBsw/roww5SWjwTEfZxqU
+(1)(2)  (3)       (4)
+```
+
+1. The identifier is always `S`
+2. The rounds as a single character
+3. Salt with a length of 8 characters  
+4. Custom base64-encoded SHA-512 hash output
+
+This algorithm is provided to verify legacy Drupal 7 passwords and migrate to a better algorithm. Do not use for new hashes.
 
 ### SHA2 crypt
 
