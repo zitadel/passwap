@@ -98,27 +98,6 @@ func TestGetIterationCount(t *testing.T) {
 	}
 }
 
-func TestDrupalBase64Encode(t *testing.T) {
-	tests := []struct {
-		input    []byte
-		expected string
-	}{
-		{[]byte{0, 0, 0}, "....."},
-		{[]byte{255, 255, 255}, "zzzz"},
-		{[]byte{1, 2, 3}, "./02"},
-	}
-
-	for _, tc := range tests {
-		t.Run("", func(t *testing.T) {
-			result := drupalBase64Encode(tc.input)
-			if len(result) == 0 {
-				t.Errorf("drupalBase64Encode returned empty string for input %v", tc.input)
-			}
-			// Note: We're not testing exact output since the algorithm is complex,
-			// but we ensure it produces reasonable output
-		})
-	}
-}
 
 func TestHashPassword(t *testing.T) {
 	// Test basic functionality

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/zitadel/passwap/internal/encoding"
 	"github.com/zitadel/passwap/verifier"
 )
 
@@ -83,46 +84,9 @@ func hashPassword(password, salt string, iterations int) string {
 		digest = hash.Sum(nil)
 	}
 
-	// Use Drupal's custom base64 encoding (which is the same as crypt3)
-	return drupalBase64Encode(digest)
+	// Use crypt3 encoding
+	return string(encoding.EncodeCrypt3(digest))
 }
 
-// drupalBase64Encode implements Drupal's custom base64 encoding
-func drupalBase64Encode(input []byte) string {
-	const alphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	output := ""
-	count := len(input)
-	i := 0
-
-	for i < count {
-		value := int(input[i])
-		i++
-		output += string(alphabet[value&0x3f])
-
-		if i < count {
-			value |= int(input[i]) << 8
-		}
-		output += string(alphabet[(value>>6)&0x3f])
-
-		if i >= count {
-			break
-		}
-		i++
-
-		if i < count {
-			value |= int(input[i]) << 16
-		}
-		output += string(alphabet[(value>>12)&0x3f])
-
-		if i >= count {
-			break
-		}
-		i++
-
-		output += string(alphabet[(value>>18)&0x3f])
-	}
-
-	return output
-}
 
 var Verifier = verifier.VerifyFunc(Verify)
