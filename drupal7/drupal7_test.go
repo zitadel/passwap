@@ -11,7 +11,7 @@ func TestVerify(t *testing.T) {
 		password string
 		hash     string
 	}{
-		// Real Drupal 7 test case
+		// Real Drupal 7 test cases
 		{"test1234", "$S$ECiTwp95d.CM.PorExdDeWcec0F1SeaEsf3Yon9RUcrhQy4Q7XX1"},
 		{"msuHVPek37GmAhTMXTQC", "$S$EvuUkmwMTwIJFXf2t2jFRD4kI5.4s.nVIMqq7cpGIRDdw8N6X.dF"},
 	}
