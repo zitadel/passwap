@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
 import hashlib
-import base64
+
+# Alphabet used for Drupal 7 crypt3 encoding
+ALPHABET = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 def get_iteration_count(char):
     """Get iteration count from the hash character (same as Go implementation)"""
-    alphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    index = alphabet.find(char)
+    index = ALPHABET.find(char)
     if index == -1:
         return -1
     return 1 << index
 
 def encode_crypt3(raw_bytes):
     """Python implementation of crypt3 encoding matching Go implementation"""
-    alphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     dest = []
     
     v = 0
@@ -24,12 +24,12 @@ def encode_crypt3(raw_bytes):
         bits += 8
         
         while bits > 6:
-            dest.append(alphabet[v & 63])
+            dest.append(ALPHABET[v & 63])
             v >>= 6
             bits -= 6
     
     if bits > 0:
-        dest.append(alphabet[v & 63])
+        dest.append(ALPHABET[v & 63])
     
     return ''.join(dest)
 
