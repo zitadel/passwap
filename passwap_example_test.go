@@ -9,9 +9,14 @@ import (
 )
 
 func Example() {
+	bcryptValidationOpts := &bcrypt.ValidationOpts{
+		MinCost: 10,
+		MaxCost: 16,
+	}
+
 	// Create a new swapper which hashes using bcrypt.
 	passwords := passwap.NewSwapper(
-		bcrypt.New(bcrypt.DefaultCost),
+		bcrypt.New(bcrypt.DefaultCost, bcryptValidationOpts),
 	)
 
 	// Create an encoded bcrypt hash string of password with salt.
@@ -24,9 +29,17 @@ func Example() {
 
 	// Replace the swapper to hash using argon2id,
 	// verifies and upgrades bcrypt.
+	argonValidationOpts := &argon2.ValidationOpts{
+		MinMemory:  32 * 1024,
+		MaxMemory:  512 * 1024,
+		MinTime:    1,
+		MaxTime:    4,
+		MinThreads: 2,
+		MaxThreads: 8,
+	}
 	passwords = passwap.NewSwapper(
-		argon2.NewArgon2id(argon2.RecommendedIDParams),
-		bcrypt.Verifier,
+		argon2.NewArgon2id(argon2.RecommendedIDParams, argonValidationOpts),
+		bcrypt.NewVerifier(bcryptValidationOpts),
 	)
 
 	// Verify encoded bcrypt string with a good password.
@@ -62,8 +75,8 @@ func Example() {
 			Threads: 4,
 			KeyLen:  32,
 			SaltLen: 16,
-		}),
-		bcrypt.Verifier,
+		}, argonValidationOpts),
+		bcrypt.NewVerifier(bcryptValidationOpts),
 	)
 
 	// Verify encoded argon2id string with a good password.

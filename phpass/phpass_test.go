@@ -1,14 +1,103 @@
 package phpass
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/zitadel/passwap/verifier"
 )
 
+func Test_checkValidationOpts(t *testing.T) {
+	tests := []struct {
+		name string
+		opts *ValidationOpts
+		want *ValidationOpts
+	}{
+		{
+			name: "nil opts returns default",
+			opts: nil,
+			want: DefaultValidationOpts,
+		},
+		{
+			name: "zero fields set to default",
+			opts: &ValidationOpts{},
+			want: DefaultValidationOpts,
+		},
+		{
+			name: "partial fields set",
+			opts: &ValidationOpts{MinRounds: 10},
+			want: &ValidationOpts{MinRounds: 10, MaxRounds: DefaultMaxRounds},
+		},
+		{
+			name: "all fields set",
+			opts: &ValidationOpts{MinRounds: 8, MaxRounds: 20},
+			want: &ValidationOpts{MinRounds: 8, MaxRounds: 20},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := checkValidationOpts(tt.opts)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkValidationOpts() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		encoded string
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "valid hash",
+			encoded: "$P$9IQRaTwmfeRo7ud9Fh4E2PdI0S3r.L0",
+			want:    verifier.OK,
+			wantErr: false,
+		},
+		{
+			name:    "malformed hash",
+			encoded: "$X$912345678WhEyvy1YWzT4647jzeOmo0",
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "invalid rounds (too low)",
+			encoded: "$P$112345678si5M0DDyPpmRCmcltU/YW/",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "invalid rounds (too high)",
+			encoded: "$P$Z12345678si5M0DDyPpmRCmcltU/YW/",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := &ValidationOpts{
+				MinRounds: 8,
+				MaxRounds: 30,
+			}
+			v := NewVerifier(opts)
+			got, err := v.Validate(tt.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Verifier.Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Verifier.Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 //test cases taken from passlib
 
-func TestVerify(t *testing.T) {
+func TestVerifier_Verify(t *testing.T) {
 	tests := []struct {
 		password string
 		hash     string
@@ -27,7 +116,8 @@ func TestVerify(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.password, func(t *testing.T) {
-			result, err := Verify(tc.hash, tc.password)
+			v := NewVerifier(nil)
+			result, err := v.Verify(tc.hash, tc.password)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -42,14 +132,13 @@ func TestVerifyMalformedHashes(t *testing.T) {
 	test := []string{
 		"$P$712345678",                       // Too short
 		"$X$912345678WhEyvy1YWzT4647jzeOmo0", // Invalid prefix
-		"$P$1IQRaTwmfeRo7ud9Fh4E2PdI0S3r.L0", // Rounds too low
-		"$P$cIQRaTwmfeRo7ud9Fh4E2PdI0S3r.L0", // Rounds too hight
 		"$P$912345678X@badSalt",              // Invalid salt chars
 	}
 
 	for _, hash := range test {
 		t.Run(hash, func(t *testing.T) {
-			result, err := Verify(hash, "irrelevant")
+			v := NewVerifier(nil)
+			result, err := v.Verify(hash, "irrelevant")
 			if err == nil {
 				t.Errorf("expected error for malformed hash: %s", hash)
 			}
@@ -72,7 +161,8 @@ func TestVerifyIncorrectPassword(t *testing.T) {
 
 	for _, tc := range incorrectTests {
 		t.Run(tc.password, func(t *testing.T) {
-			result, err := Verify(tc.hash, tc.password)
+			v := NewVerifier(nil)
+			result, err := v.Verify(tc.hash, tc.password)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

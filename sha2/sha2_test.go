@@ -272,6 +272,77 @@ func TestHasher_Hash(t *testing.T) {
 	}
 }
 
+func TestHasher_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		encoded string
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "parse error",
+			encoded: "totallywrongformat",
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "valid sha512",
+			encoded: "$6$rounds=3$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.OK,
+			wantErr: false,
+		},
+		{
+			name:    "valid sha256",
+			encoded: "$5$rounds=7$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.OK,
+			wantErr: false,
+		},
+		{
+			name:    "sha256 too low rounds",
+			encoded: "$5$rounds=1$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "sha256 too high rounds",
+			encoded: "$5$rounds=11$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "sha512 too low rounds",
+			encoded: "$6$rounds=1$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "sha512 too high rounds",
+			encoded: "$6$rounds=11$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := &ValidationOpts{
+				MinSha256Rounds: 5,
+				MaxSha256Rounds: 10,
+				MinSha512Rounds: 2,
+				MaxSha512Rounds: 5,
+			}
+			v := New512(1000, opts)
+			got, err := v.Validate(tt.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHasher_Verify(t *testing.T) {
 	password := "foobar"
 	encoded := "$6$rounds=10000$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1"
@@ -333,7 +404,7 @@ func TestHasher_Verify(t *testing.T) {
 }
 
 func TestHasher512(t *testing.T) {
-	h := New512(5000)
+	h := New512(5000, nil)
 	hash, err := h.Hash("password")
 	if err != nil {
 		t.Fatal(err)
@@ -349,7 +420,7 @@ func TestHasher512(t *testing.T) {
 }
 
 func TestHasher256(t *testing.T) {
-	h := New256(5000)
+	h := New256(5000, nil)
 	hash, err := h.Hash("password")
 	if err != nil {
 		t.Fatal(err)
@@ -364,7 +435,137 @@ func TestHasher256(t *testing.T) {
 	}
 }
 
-func TestVerify(t *testing.T) {
+func Test_checkValidationOpts(t *testing.T) {
+	tests := []struct {
+		name string
+		opts *ValidationOpts
+		want *ValidationOpts
+	}{
+		{
+			name: "nil opts",
+			opts: nil,
+			want: DefaultValidationOpts,
+		},
+		{
+			name: "empty opts",
+			opts: &ValidationOpts{},
+			want: &ValidationOpts{
+				MinSha256Rounds: RoundsMin,
+				MaxSha256Rounds: RoundsMax,
+				MinSha512Rounds: RoundsMin,
+				MaxSha512Rounds: RoundsMax,
+			},
+		},
+		{
+			name: "partial opts",
+			opts: &ValidationOpts{
+				MinSha256Rounds: 3,
+			},
+			want: &ValidationOpts{
+				MinSha256Rounds: 3,
+				MaxSha256Rounds: RoundsMax,
+				MinSha512Rounds: RoundsMin,
+				MaxSha512Rounds: RoundsMax,
+			},
+		},
+		{
+			name: "full opts",
+			opts: &ValidationOpts{
+				MinSha256Rounds: 4,
+				MaxSha256Rounds: 5000,
+				MinSha512Rounds: 5,
+				MaxSha512Rounds: 10000,
+			},
+			want: &ValidationOpts{
+				MinSha256Rounds: 4,
+				MaxSha256Rounds: 5000,
+				MinSha512Rounds: 5,
+				MaxSha512Rounds: 10000,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := checkValidationOpts(tt.opts)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkValidationOpts() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		encoded string
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "parse error",
+			encoded: "totallywrongformat",
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "valid sha512",
+			encoded: "$6$rounds=3$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.OK,
+			wantErr: false,
+		},
+		{
+			name:    "valid sha256",
+			encoded: "$5$rounds=7$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.OK,
+			wantErr: false,
+		},
+		{
+			name:    "sha256 too low rounds",
+			encoded: "$5$rounds=1$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "sha256 too high rounds",
+			encoded: "$5$rounds=11$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "sha512 too low rounds",
+			encoded: "$6$rounds=1$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "sha512 too high rounds",
+			encoded: "$6$rounds=11$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1",
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := &ValidationOpts{
+				MinSha256Rounds: 5,
+				MaxSha256Rounds: 10,
+				MinSha512Rounds: 2,
+				MaxSha512Rounds: 5,
+			}
+			v := NewVerifier(opts)
+			got, err := v.Validate(tt.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Verify(t *testing.T) {
 	password := "foobar"
 	encoded := "$6$rounds=10000$saltsaltsaltsalt$EZKkFhxaTyiAhcKpFxN09.libqbOVLez7TJLU9i1rGqmCJkU4O5MLKPlNmVFwvj9YM3HTmo.EQeTrTAI01tZz1"
 
@@ -397,7 +598,8 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.encoded, tt.password)
+			v := NewVerifier(nil)
+			got, err := v.Verify(tt.encoded, tt.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return

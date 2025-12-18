@@ -24,6 +24,16 @@ const (
 	Prefix        = "$argon2"
 )
 
+// Validation defaults
+const (
+	DefaultMinTime    = 1
+	DefaultMaxTime    = 10
+	DefaultMinMemory  = 8 * 1024
+	DefaultMaxMemory  = 512 * 1024
+	DefaultMinThreads = 1
+	DefaultMaxThreads = 16
+)
+
 // Params are used for all argon2 modes.
 type Params struct {
 	Time    uint32
@@ -126,6 +136,37 @@ func parse(encoded string) (*checker, error) {
 	return &c, nil
 }
 
+func (c *checker) validate(opts *ValidationOpts) error {
+	if c.Time < opts.MinTime || c.Time > opts.MaxTime {
+		return &verifier.BoundsError{
+			Algorithm: "argon2",
+			Param:     "time",
+			Min:       int(opts.MinTime),
+			Max:       int(opts.MaxTime),
+			Actual:    int(c.Time),
+		}
+	}
+	if c.Memory < opts.MinMemory || c.Memory > opts.MaxMemory {
+		return &verifier.BoundsError{
+			Algorithm: "argon2",
+			Param:     "memory",
+			Min:       int(opts.MinMemory),
+			Max:       int(opts.MaxMemory),
+			Actual:    int(c.Memory),
+		}
+	}
+	if c.Threads < opts.MinThreads || c.Threads > opts.MaxThreads {
+		return &verifier.BoundsError{
+			Algorithm: "argon2",
+			Param:     "threads",
+			Min:       int(opts.MinThreads),
+			Max:       int(opts.MaxThreads),
+			Actual:    int(c.Threads),
+		}
+	}
+	return nil
+}
+
 func (c *checker) verify(pw string) verifier.Result {
 	hash := c.hf([]byte(pw), c.salt, c.Time, c.Memory, c.Threads, c.KeyLen)
 	res := subtle.ConstantTimeCompare(hash, c.hash)
@@ -134,6 +175,7 @@ func (c *checker) verify(pw string) verifier.Result {
 }
 
 type Hasher struct {
+	opts *ValidationOpts
 	p    Params
 	rand io.Reader
 	hf   hashFunc
@@ -155,6 +197,18 @@ func (h *Hasher) Hash(password string) (string, error) {
 	), nil
 }
 
+func (h *Hasher) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+	err = c.validate(h.opts)
+	if err != nil {
+		return verifier.Fail, err
+	}
+	return verifier.OK, nil
+}
+
 // Verify implements passwap.Verifier
 func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
@@ -174,24 +228,91 @@ func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 	return verifier.OK, nil
 }
 
-func NewArgon2i(p Params) *Hasher {
+func NewArgon2i(p Params, opts *ValidationOpts) *Hasher {
 	p.id = Identifier_i
 
 	return &Hasher{
+		opts: checkValidaionOpts(opts),
 		p:    p,
 		rand: rand.Reader,
 		hf:   argon2.Key,
 	}
 }
 
-func NewArgon2id(p Params) *Hasher {
+func NewArgon2id(p Params, opts *ValidationOpts) *Hasher {
 	p.id = Identifier_id
 
 	return &Hasher{
+		opts: checkValidaionOpts(opts),
 		p:    p,
 		rand: rand.Reader,
 		hf:   argon2.IDKey,
 	}
+}
+
+type ValidationOpts struct {
+	MinTime    uint32
+	MaxTime    uint32
+	MinMemory  uint32
+	MaxMemory  uint32
+	MinThreads uint8
+	MaxThreads uint8
+}
+
+var DefaultValidationOpts = &ValidationOpts{
+	MinTime:    DefaultMinTime,
+	MaxTime:    DefaultMaxTime,
+	MinMemory:  DefaultMinMemory,
+	MaxMemory:  DefaultMaxMemory,
+	MinThreads: DefaultMinThreads,
+	MaxThreads: DefaultMaxThreads,
+}
+
+func checkValidaionOpts(opts *ValidationOpts) *ValidationOpts {
+	if opts == nil {
+		return DefaultValidationOpts
+	}
+	if opts.MinTime == 0 {
+		opts.MinTime = DefaultMinTime
+	}
+	if opts.MaxTime == 0 {
+		opts.MaxTime = DefaultMaxTime
+	}
+	if opts.MinMemory == 0 {
+		opts.MinMemory = DefaultMinMemory
+	}
+	if opts.MaxMemory == 0 {
+		opts.MaxMemory = DefaultMaxMemory
+	}
+	if opts.MinThreads == 0 {
+		opts.MinThreads = DefaultMinThreads
+	}
+	if opts.MaxThreads == 0 {
+		opts.MaxThreads = DefaultMaxThreads
+	}
+	return opts
+}
+
+type Verifier struct {
+	opts *ValidationOpts
+}
+
+func NewVerifier(opts *ValidationOpts) *Verifier {
+	return &Verifier{
+		opts: checkValidaionOpts(opts),
+	}
+}
+
+func (v *Verifier) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+	err = c.validate(v.opts)
+	if err != nil {
+		return verifier.Fail, err
+	}
+	return verifier.OK, nil
 }
 
 // Verify parses encoded and uses its argon2 parameters
@@ -203,7 +324,7 @@ func NewArgon2id(p Params) *Hasher {
 // and therefore not by this package.
 // ErrArgon2d is returned when an argon2d identifier is in
 // the encoded string.
-func Verify(encoded, password string) (verifier.Result, error) {
+func (v *Verifier) Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
 	if err != nil || c == nil {
 		return verifier.Skip, err
@@ -211,5 +332,3 @@ func Verify(encoded, password string) (verifier.Result, error) {
 
 	return c.verify(password), nil
 }
-
-var Verifier = verifier.VerifyFunc(Verify)

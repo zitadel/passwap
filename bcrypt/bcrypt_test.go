@@ -146,7 +146,7 @@ func TestHasher_Hash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := New(testvalues.BcryptCost)
+			h := New(testvalues.BcryptCost, nil)
 
 			oldReader := rand.Reader
 			rand.Reader = tt.reader
@@ -168,6 +168,65 @@ func TestHasher_Hash(t *testing.T) {
 	}
 }
 
+func TestHasher_Validate(t *testing.T) {
+	opts := &ValidationOpts{
+		MinCost: 10,
+		MaxCost: 12,
+	}
+	type args struct {
+		encoded string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "not bcrypt",
+			args:    args{testvalues.ScryptEncoded},
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "cost error",
+			args:    args{"$2b$foo"},
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "cost too low",
+			args:    args{`$2b$09$bIRGj4QPPoSUMWsJE.4Pk.T1qTpDWz7HhMnuiQhGzGinKPsx/HQdq`},
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "cost too high",
+			args:    args{`$2b$16$bIRGj4QPPoSUMWsJE.4Pk.T1qTpDWz7HhMnuiQhGzGinKPsx/HQdq`},
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name: "valid cost",
+			args: args{`$2b$12$bIRGj4QPPoSUMWsJE.4Pk.T1qTpDWz7HhMnuiQhGzGinKPsx/HQdq`},
+			want: verifier.OK,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := New(2, opts)
+			got, err := v.Validate(tt.args.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHasher_Verify(t *testing.T) {
 	type fields struct {
 		cost int
@@ -184,10 +243,11 @@ func TestHasher_Verify(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "not bcrypt",
-			fields: fields{testvalues.BcryptCost},
-			args:   args{testvalues.ScryptEncoded, testvalues.Password},
-			want:   verifier.Skip,
+			name:    "not bcrypt",
+			fields:  fields{testvalues.BcryptCost},
+			args:    args{testvalues.ScryptEncoded, testvalues.Password},
+			want:    verifier.Skip,
+			wantErr: true,
 		},
 		{
 			name:    "cost error",
@@ -229,7 +289,7 @@ func TestHasher_Verify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := New(tt.fields.cost)
+			h := New(tt.fields.cost, nil)
 			got, err := h.Verify(tt.args.encoded, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Hasher.Verify() error = %v, wantErr %v", err, tt.wantErr)
@@ -242,7 +302,117 @@ func TestHasher_Verify(t *testing.T) {
 	}
 }
 
-func TestVerify(t *testing.T) {
+func Test_checkValidaionOpts(t *testing.T) {
+	type args struct {
+		opts *ValidationOpts
+	}
+	tests := []struct {
+		name string
+		args args
+		want *ValidationOpts
+	}{
+		{
+			name: "nil opts",
+			args: args{nil},
+			want: &DefaultValidationOpts,
+		},
+		{
+			name: "empty opts",
+			args: args{&ValidationOpts{}},
+			want: &DefaultValidationOpts,
+		},
+		{
+			name: "zero min cost",
+			args: args{&ValidationOpts{
+				MinCost: 0,
+				MaxCost: 15,
+			}},
+			want: &ValidationOpts{
+				MinCost: DefaultValidationOpts.MinCost,
+				MaxCost: 15,
+			},
+		},
+		{
+			name: "zero max cost",
+			args: args{&ValidationOpts{
+				MinCost: 10,
+				MaxCost: 0,
+			}},
+			want: &ValidationOpts{
+				MinCost: 10,
+				MaxCost: DefaultValidationOpts.MaxCost,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := checkValidaionOpts(tt.args.opts); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkValidaionOpts() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Validate(t *testing.T) {
+	opts := &ValidationOpts{
+		MinCost: 10,
+		MaxCost: 12,
+	}
+	type args struct {
+		encoded string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "not bcrypt",
+			args:    args{testvalues.ScryptEncoded},
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "cost error",
+			args:    args{"$2b$foo"},
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "cost too low",
+			args:    args{`$2b$09$bIRGj4QPPoSUMWsJE.4Pk.T1qTpDWz7HhMnuiQhGzGinKPsx/HQdq`},
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "cost too high",
+			args:    args{`$2b$16$bIRGj4QPPoSUMWsJE.4Pk.T1qTpDWz7HhMnuiQhGzGinKPsx/HQdq`},
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name: "valid cost",
+			args: args{`$2b$12$bIRGj4QPPoSUMWsJE.4Pk.T1qTpDWz7HhMnuiQhGzGinKPsx/HQdq`},
+			want: verifier.OK,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVerifier(opts)
+			got, err := v.Validate(tt.args.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Verify(t *testing.T) {
 	type args struct {
 		encoded  string
 		password string
@@ -281,7 +451,8 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.args.encoded, tt.args.password)
+			v := NewVerifier(nil)
+			got, err := v.Verify(tt.args.encoded, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return

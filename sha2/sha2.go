@@ -223,6 +223,31 @@ func parse(hash string) (*checker, error) {
 	return &checker, nil
 }
 
+func (c *checker) validate(opts *ValidationOpts) error {
+	if c.use512 {
+		if c.rounds < opts.MinSha512Rounds || c.rounds > opts.MaxSha512Rounds {
+			return &verifier.BoundsError{
+				Algorithm: "SHA-512",
+				Param:     "rounds",
+				Min:       opts.MinSha512Rounds,
+				Max:       opts.MaxSha512Rounds,
+				Actual:    c.rounds,
+			}
+		}
+	} else {
+		if c.rounds < opts.MinSha256Rounds || c.rounds > opts.MaxSha256Rounds {
+			return &verifier.BoundsError{
+				Algorithm: "SHA-256",
+				Param:     "rounds",
+				Min:       opts.MinSha256Rounds,
+				Max:       opts.MaxSha256Rounds,
+				Actual:    c.rounds,
+			}
+		}
+	}
+	return nil
+}
+
 func (c *checker) verify(password string) verifier.Result {
 	passwordHash := createHash(c.use512, []byte(password), c.salt, c.rounds)
 	res := subtle.ConstantTimeCompare(passwordHash, c.hash)
@@ -232,6 +257,7 @@ func (c *checker) verify(password string) verifier.Result {
 
 // Hasher hashes and verifies crypt(3) style SHA256 and SHA512 passwords.
 type Hasher struct {
+	opts   *ValidationOpts
 	use512 bool
 	rounds int
 	rand   io.Reader
@@ -248,6 +274,18 @@ func (h *Hasher) Hash(password string) (string, error) {
 	encoded := createHash(h.use512, []byte(password), encSalt, h.rounds)
 
 	return string(encoded), nil
+}
+
+func (h *Hasher) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+	err = c.validate(h.opts)
+	if err != nil {
+		return verifier.Fail, err
+	}
+	return verifier.OK, nil
 }
 
 // Verify implements passwap.Verifier
@@ -269,31 +307,84 @@ func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 	return verifier.OK, nil
 }
 
-func New256(rounds int) *Hasher {
+func New256(rounds int, opts *ValidationOpts) *Hasher {
 	return &Hasher{
+		opts:   checkValidationOpts(opts),
 		use512: false,
 		rounds: rounds,
 		rand:   rand.Reader,
 	}
 }
-func New512(rounds int) *Hasher {
+func New512(rounds int, opts *ValidationOpts) *Hasher {
 	return &Hasher{
+		opts:   checkValidationOpts(opts),
 		use512: true,
 		rounds: rounds,
 		rand:   rand.Reader,
 	}
 }
 
-// Verify parses encoded and uses its parameters
-// to verify password against its hash.
-func Verify(encoded, password string) (verifier.Result, error) {
+type ValidationOpts struct {
+	MinSha256Rounds int
+	MaxSha256Rounds int
+	MinSha512Rounds int
+	MaxSha512Rounds int
+}
+
+var DefaultValidationOpts = &ValidationOpts{
+	MinSha256Rounds: RoundsMin,
+	MaxSha256Rounds: RoundsMax,
+	MinSha512Rounds: RoundsMin,
+	MaxSha512Rounds: RoundsMax,
+}
+
+func checkValidationOpts(opts *ValidationOpts) *ValidationOpts {
+	if opts == nil {
+		return DefaultValidationOpts
+	}
+	if opts.MinSha256Rounds <= 0 {
+		opts.MinSha256Rounds = RoundsMin
+	}
+	if opts.MaxSha256Rounds <= 0 {
+		opts.MaxSha256Rounds = RoundsMax
+	}
+	if opts.MinSha512Rounds <= 0 {
+		opts.MinSha512Rounds = RoundsMin
+	}
+	if opts.MaxSha512Rounds <= 0 {
+		opts.MaxSha512Rounds = RoundsMax
+	}
+	return opts
+}
+
+type Verifier struct {
+	opts *ValidationOpts
+}
+
+func NewVerifier(opts *ValidationOpts) *Verifier {
+	return &Verifier{
+		opts: checkValidationOpts(opts),
+	}
+}
+
+func (v *Verifier) Validate(encoded string) (verifier.Result, error) {
 	c, err := parse(encoded)
 	if err != nil || c == nil {
 		return verifier.Skip, err
 	}
-
-	return c.verify(password), nil
+	err = c.validate(v.opts)
+	if err != nil {
+		return verifier.Fail, err
+	}
+	return verifier.OK, nil
 }
 
-// Verifier for sha2.
-var Verifier = verifier.VerifyFunc(Verify)
+// Verify parses encoded and uses its parameters
+// to verify password against its hash.
+func (v *Verifier) Verify(encoded, password string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+	return c.verify(password), nil
+}

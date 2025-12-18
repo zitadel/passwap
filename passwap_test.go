@@ -12,19 +12,6 @@ import (
 )
 
 var (
-	mockV = verifier.VerifyFunc(func(encoded string, password string) (verifier.Result, error) {
-		switch encoded {
-		case "$mock$bug":
-			return 99, nil
-		case "$mock$failErr":
-			return verifier.Fail, errors.New("oops!")
-		case "$argon2id$multi":
-			return verifier.Skip, errors.New("oops!")
-		default:
-			return verifier.Skip, nil
-		}
-	})
-
 	testArgon2Params = argon2.Params{
 		Time:    tv.Argon2Time,
 		Memory:  tv.Argon2Memory,
@@ -32,16 +19,19 @@ var (
 		KeyLen:  tv.KeyLen,
 		SaltLen: tv.SaltLen,
 	}
-	testHasher  = argon2.NewArgon2id(testArgon2Params)
-	testSwapper = NewSwapper(testHasher, mockV, scrypt.Verifier)
+	testHasher = argon2.NewArgon2id(testArgon2Params, &argon2.ValidationOpts{
+		MinMemory: 4000,
+	})
+	scryptVerifier = scrypt.NewVerifier(nil)
+	testSwapper    = NewSwapper(testHasher, scryptVerifier)
 )
 
 func TestNewSwapper(t *testing.T) {
 	want := &Swapper{
 		h:         testHasher,
-		verifiers: []verifier.Verifier{testHasher, argon2.Verifier},
+		verifiers: []verifier.Verifier{testHasher, scryptVerifier},
 	}
-	if got := NewSwapper(testHasher, argon2.Verifier); !reflect.DeepEqual(got.h, want.h) || len(got.verifiers) != len(want.verifiers) {
+	if got := NewSwapper(testHasher, scryptVerifier); !reflect.DeepEqual(got.h, want.h) || len(got.verifiers) != len(want.verifiers) {
 		t.Errorf("NewSwapper() = %v, want %v", got, want)
 	}
 }
@@ -54,6 +44,59 @@ func TestMultiError(t *testing.T) {
 	errs := SkipErrors{errors.New("foo"), errors.New("bar")}
 	if got := errs.Error(); got != want {
 		t.Errorf("MultiError =\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestSwapper_Validate(t *testing.T) {
+	type args struct {
+		encoded string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name:    "valid argon2id",
+			args:    args{tv.Argon2idEncoded},
+			wantErr: false,
+		},
+		{
+			name:    "valid scrypt",
+			args:    args{tv.ScryptEncoded},
+			wantErr: false,
+		},
+		{
+			name:    "invalid encoding",
+			args:    args{"foobar"},
+			wantErr: true,
+		},
+		{
+			name:    "argon2 memory too high",
+			args:    args{`$argon2id$v=19$m=1000000,t=3,p=1$cmFuZG9tc2FsdGlzaGFyZA$DYojYpnUWSMmTtrkVXyaNWVGxLmGe1n8VJBPDdFkbjU`},
+			wantErr: true,
+		},
+		{
+			name: "unsupported verifier",
+			args: args{
+				`$mock$unsupported`,
+			},
+			wantErr: true,
+		},
+		{
+			name: "argon2 parse error",
+			args: args{
+				`$argon2id$foo`,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := testSwapper.Validate(tt.args.encoded); (err != nil) != tt.wantErr {
+				t.Errorf("Swapper.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 

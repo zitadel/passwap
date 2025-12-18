@@ -8,7 +8,45 @@ import (
 	"github.com/zitadel/passwap/verifier"
 )
 
-func TestVerify(t *testing.T) {
+func TestVerifier_Validate(t *testing.T) {
+	type args struct {
+		hash     string
+		password string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "decode error",
+			args:    args{"!!!", testvalues.Password},
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name: "success",
+			args: args{testvalues.MD5PlainHex, testvalues.Password},
+			want: verifier.OK,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVerifier()
+			got, err := v.Validate(tt.args.hash)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Verify() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Verify(t *testing.T) {
 	type args struct {
 		hash     string
 		password string
@@ -38,7 +76,8 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.args.hash, tt.args.password)
+			v := NewVerifier()
+			got, err := v.Verify(tt.args.hash, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return

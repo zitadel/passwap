@@ -3,18 +3,20 @@ package verifier_test
 import (
 	"testing"
 
-	"github.com/zitadel/passwap/argon2"
-	tv "github.com/zitadel/passwap/internal/testvalues"
 	"github.com/zitadel/passwap/verifier"
 )
 
-func TestVerifyFunc_Verify(t *testing.T) {
-	v := verifier.VerifyFunc(argon2.Verify)
-	result, err := v.Verify(tv.Argon2idEncoded, tv.Password)
-	if err != nil {
-		t.Fatal(err)
+func TestBoundsError(t *testing.T) {
+	err := &verifier.BoundsError{
+		Algorithm: "test-algo",
+		Param:     "test-param",
+		Min:       1,
+		Max:       10,
+		Actual:    20,
 	}
-	if result != verifier.OK {
-		t.Errorf("VerifyFunc = %s, want %s", result, verifier.OK)
+
+	expectedMsg := "verifier: test-algo parameter test-param out of bounds: expected 1 - 10, got 20"
+	if err.Error() != expectedMsg {
+		t.Errorf("BoundsError.Error() = %q, want %q", err.Error(), expectedMsg)
 	}
 }
