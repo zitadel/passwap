@@ -13,7 +13,7 @@ import (
 
 var (
 	testParams = Params{
-		N:       tv.ScryptN,
+		LN:      tv.ScryptLN,
 		R:       tv.ScryptR,
 		P:       tv.ScryptP,
 		KeyLen:  tv.KeyLen,
@@ -89,12 +89,6 @@ func Test_checker_verify(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "scrypt error",
-			N:       1,
-			pw:      tv.Password,
-			wantErr: true,
-		},
-		{
 			name: "wrong password",
 			pw:   "foo",
 			want: verifier.Fail,
@@ -112,10 +106,6 @@ func Test_checker_verify(t *testing.T) {
 				hash:   tv.ScryptHash,
 				salt:   []byte(tv.Salt),
 			}
-			if tt.N != 0 {
-				c.Params.N = tt.N
-			}
-
 			got, err := c.verify(tt.pw)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checker.verify() error = %v, wantErr %v", err, tt.wantErr)
@@ -142,12 +132,6 @@ func TestHasher_Hash(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "scrypt error",
-			N:       1,
-			rand:    tv.SaltReader(),
-			wantErr: true,
-		},
-		{
 			name: "succes",
 			rand: tv.SaltReader(),
 			want: tv.ScryptEncoded,
@@ -159,10 +143,6 @@ func TestHasher_Hash(t *testing.T) {
 				p:    testParams,
 				rand: tt.rand,
 			}
-			if tt.N != 0 {
-				h.p.N = tt.N
-			}
-
 			got, err := h.Hash(tv.Password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Hasher.Hash() error = %v, wantErr %v", err, tt.wantErr)
@@ -170,6 +150,103 @@ func TestHasher_Hash(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("Hasher.Hash() =\n%v\nwant\n%v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasher_Validate(t *testing.T) {
+	testOpts := &ValidationOpts{
+		MinLN: 4,
+		MaxLN: 16,
+		MinR:  2,
+		MaxR:  6,
+		MinP:  4,
+		MaxP:  16,
+	}
+	tests := []struct {
+		name    string
+		opts    *ValidationOpts
+		encoded string
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "parse error",
+			opts:    testOpts,
+			encoded: "$scrypt$!!!!",
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "success",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.OK,
+		},
+		{
+			name:    "LN too small",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=1,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "LN too large",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=17,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "r too small",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=1,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "r too large",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=7,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "p too small",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=4,p=2$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "p too large",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=4,p=17$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name: "p * r too large",
+			opts: &ValidationOpts{
+				MaxR: 1 << 30,
+				MaxP: 1 << 30,
+			},
+			encoded: `$scrypt$ln=16,r=33000,p=33000$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := New(testParams, tt.opts)
+			got, err := v.Validate(tt.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -203,7 +280,7 @@ func TestHasher_Verify(t *testing.T) {
 		{
 			name: "need update",
 			p: Params{
-				N:       tv.ScryptN * 2,
+				LN:      tv.ScryptLN + 1,
 				R:       tv.ScryptR,
 				P:       tv.ScryptP,
 				KeyLen:  tv.KeyLen,
@@ -238,7 +315,7 @@ func TestHasher_Verify(t *testing.T) {
 }
 
 func TestHasher(t *testing.T) {
-	h := New(testParams)
+	h := New(testParams, nil)
 	hash, err := h.Hash(tv.Password)
 	if err != nil {
 		t.Fatal(err)
@@ -253,7 +330,163 @@ func TestHasher(t *testing.T) {
 	}
 }
 
-func TestVerify(t *testing.T) {
+func Test_checkValidationOpts(t *testing.T) {
+	tests := []struct {
+		name string
+		opts *ValidationOpts
+		want *ValidationOpts
+	}{
+		{
+			name: "nil opts",
+			opts: nil,
+			want: DefaultValidationOpts,
+		},
+		{
+			name: "empty opts",
+			opts: &ValidationOpts{},
+			want: DefaultValidationOpts,
+		},
+		{
+			name: "partial opts",
+			opts: &ValidationOpts{
+				MinLN: 10,
+			},
+			want: &ValidationOpts{
+				MinLN: 10,
+				MaxLN: DefaultMaxLN,
+				MinR:  DefaultMinR,
+				MaxR:  DefaultMaxR,
+				MinP:  DefaultMinP,
+				MaxP:  DefaultMaxP,
+			},
+		},
+		{
+			name: "full opts",
+			opts: &ValidationOpts{
+				MinLN: 10,
+				MaxLN: 15,
+				MinR:  3,
+				MaxR:  5,
+				MinP:  6,
+				MaxP:  12,
+			},
+			want: &ValidationOpts{
+				MinLN: 10,
+				MaxLN: 15,
+				MinR:  3,
+				MaxR:  5,
+				MinP:  6,
+				MaxP:  12,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := checkValidationOpts(tt.opts); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkValidationOpts() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Validate(t *testing.T) {
+	testOpts := &ValidationOpts{
+		MinLN: 4,
+		MaxLN: 16,
+		MinR:  2,
+		MaxR:  6,
+		MinP:  4,
+		MaxP:  16,
+	}
+	tests := []struct {
+		name    string
+		opts    *ValidationOpts
+		encoded string
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "parse error",
+			opts:    testOpts,
+			encoded: "$scrypt$!!!!",
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "success",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.OK,
+		},
+		{
+			name:    "LN too small",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=1,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "LN too large",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=17,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "r too small",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=1,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "r too large",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=7,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "p too small",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=4,p=2$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name:    "p too large",
+			opts:    testOpts,
+			encoded: `$scrypt$ln=10,r=4,p=17$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+		{
+			name: "p * r too large",
+			opts: &ValidationOpts{
+				MaxR: 1 << 30,
+				MaxP: 1 << 30,
+			},
+			encoded: `$scrypt$ln=16,r=33000,p=33000$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
+			want:    verifier.Fail,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVerifier(tt.opts)
+			got, err := v.Validate(tt.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Verify(t *testing.T) {
 	type args struct {
 		encoded  string
 		password string
@@ -283,7 +516,8 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.args.encoded, tt.args.password)
+			v := NewVerifier(nil)
+			got, err := v.Verify(tt.args.encoded, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -2,12 +2,9 @@ package md5
 
 import (
 	"bytes"
-	"io"
 	"reflect"
-	"strings"
 	"testing"
 
-	"github.com/zitadel/passwap/internal/salt"
 	"github.com/zitadel/passwap/internal/testvalues"
 	"github.com/zitadel/passwap/verifier"
 )
@@ -17,42 +14,6 @@ func Test_checksum(t *testing.T) {
 
 	if !bytes.Equal(hash, testvalues.MD5Checksum) {
 		t.Errorf("checksum() =\n%s\nwant\n%s", hash, testvalues.MD5Checksum)
-	}
-}
-
-func Test_hash(t *testing.T) {
-	type args struct {
-		r        io.Reader
-		password string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name:    "salt error",
-			args:    args{salt.ErrReader{}, testvalues.Password},
-			wantErr: true,
-		},
-		{
-			name: "success",
-			args: args{strings.NewReader(testvalues.MD5SaltRaw), testvalues.Password},
-			want: testvalues.MD5Encoded,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := hash(tt.args.r, tt.args.password)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("hash() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("hash() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }
 
@@ -131,7 +92,45 @@ func Test_checker_verify(t *testing.T) {
 	}
 }
 
-func TestVerify(t *testing.T) {
+func TestVerifier_Validate(t *testing.T) {
+	type args struct {
+		encoded  string
+		password string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "decode error",
+			args:    args{"$1$foo", testvalues.Password},
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name: "success",
+			args: args{testvalues.MD5Encoded, testvalues.Password},
+			want: verifier.OK,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVerifier()
+			got, err := v.Validate(tt.args.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Verify() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Verify(t *testing.T) {
 	type args struct {
 		encoded  string
 		password string
@@ -166,7 +165,8 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.args.encoded, tt.args.password)
+			v := NewVerifier()
+			got, err := v.Verify(tt.args.encoded, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -175,21 +175,5 @@ func TestVerify(t *testing.T) {
 				t.Errorf("Verify() = %v, want %v", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestHasher(t *testing.T) {
-	var h Hasher
-
-	encoded, err := h.Hash("foobar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := h.Verify(encoded, "foobar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result != verifier.OK {
-		t.Errorf("Hasher.Verify() = %s, want %s", result, verifier.OK)
 	}
 }

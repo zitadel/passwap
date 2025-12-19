@@ -81,8 +81,22 @@ func (c *checker) verify(password string) (verifier.Result, error) {
 	), nil
 }
 
+type Verifier struct{}
+
+func NewVerifier() *Verifier {
+	return &Verifier{}
+}
+
+func (*Verifier) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+	return verifier.OK, nil
+}
+
 // Verify parses encoded and verifies password against the checksum.
-func Verify(encoded, password string) (verifier.Result, error) {
+func (*Verifier) Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
 	if err != nil || c == nil {
 		return verifier.Skip, err
@@ -90,5 +104,3 @@ func Verify(encoded, password string) (verifier.Result, error) {
 
 	return c.verify(password)
 }
-
-var Verifier = verifier.VerifyFunc(Verify)

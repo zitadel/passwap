@@ -75,6 +75,45 @@ func (e SkipErrors) Error() string {
 	return fmt.Sprintf("passwap multiple parse errors: %s", strings.Join(strs, "; "))
 }
 
+// Validate checks if any of the configured Verifiers
+// is able to parse the encoded string, within the set bounds.
+// If a Verifier matches but the cost parameters are out of bounds,
+// a [*verifier.BoundsError] error is returned.
+//
+// [ErrNoVerifier] is returned if no matching Verifier is found
+// for the encoded string.
+// When multiple Verifiers match and encounter an error during
+// decoding, a SkipErrors is returned containing all those errors.
+func (s *Swapper) Validate(encoded string) error {
+	var errs SkipErrors
+
+	for _, v := range s.verifiers {
+		result, err := v.Validate(encoded)
+		switch result {
+		case verifier.OK:
+			return nil
+		case verifier.Fail:
+			return fmt.Errorf("passwap: %w", err)
+		case verifier.Skip:
+			if err != nil {
+				errs = append(errs, err)
+			}
+			continue
+		default:
+			return fmt.Errorf("passwap: (BUG) verifier returned invalid result N %d", result)
+		}
+	}
+
+	switch len(errs) {
+	case 0:
+		return ErrNoVerifier
+	case 1:
+		return fmt.Errorf("passwap: %w", errs[0])
+	default:
+		return errs
+	}
+}
+
 // Verify a password against an existing encoded hash,
 // using the configured Hasher or one of the Verifiers.
 //
@@ -90,6 +129,10 @@ func (e SkipErrors) Error() string {
 // string is returned for the same (valid) password.
 // In all other cases updated remains empty.
 // When updated is not empty, it must be stored until next use.
+//
+// Verify does not check parameter bounds, instead it trusts
+// this was already done by [Swapper.Validate], in case
+// passwords were imported from an untrusted source.
 func (s *Swapper) Verify(encoded, password string) (updated string, err error) {
 	return s.verifyAndUpdate(encoded, password, password)
 }

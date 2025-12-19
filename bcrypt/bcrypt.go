@@ -2,6 +2,7 @@ package bcrypt
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/zitadel/passwap/verifier"
 	"golang.org/x/crypto/bcrypt"
@@ -19,9 +20,9 @@ var (
 )
 
 const (
-	MinCost     = bcrypt.MinCost
-	MaxCost     = bcrypt.MaxCost
-	DefaultCost = bcrypt.DefaultCost
+	DefaultMinCost = bcrypt.MinCost
+	DefaultMaxCost = bcrypt.MaxCost
+	DefaultCost    = bcrypt.DefaultCost
 )
 
 // hasBcryptVersion checks for the Bcrypt Prefix
@@ -39,6 +40,37 @@ func hasBcryptVersion(encoded []byte) bool {
 	}
 
 	return false
+}
+
+type checker struct {
+	cost int
+}
+
+func parse(encoded []byte) (*checker, error) {
+	encodedB := []byte(encoded)
+	if !hasBcryptVersion(encodedB) {
+		return nil, errors.New("not a bcrypt version")
+	}
+	cost, err := bcrypt.Cost(encodedB)
+	if err != nil {
+		return nil, err
+	}
+	return &checker{
+		cost: cost,
+	}, nil
+}
+
+func (c *checker) validate(opts *ValidationOpts) error {
+	if c.cost < opts.MinCost || c.cost > opts.MaxCost {
+		return &verifier.BoundsError{
+			Algorithm: "bcrypt",
+			Param:     "cost",
+			Min:       opts.MinCost,
+			Max:       opts.MaxCost,
+			Actual:    c.cost,
+		}
+	}
+	return nil
 }
 
 // compareHashAndPassword wraps bcrypt.CompareHashAndPassword
@@ -65,6 +97,7 @@ func compareHashAndPassword(encoded, password []byte) (verifier.Result, error) {
 
 // Hasher hashes and verifies bcrypt passwords.
 type Hasher struct {
+	opts *ValidationOpts
 	cost int
 }
 
@@ -78,24 +111,31 @@ func (h *Hasher) Hash(password string) (string, error) {
 	return string(encoded), nil
 }
 
+func (h *Hasher) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse([]byte(encoded))
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+	err = c.validate(checkValidationOpts(h.opts))
+	if err != nil {
+		return verifier.Fail, err
+	}
+	return verifier.OK, nil
+}
+
 // Verify implements passwap.Verifier
 func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 	encodedB := []byte(encoded)
-	if !hasBcryptVersion(encodedB) {
-		return verifier.Skip, nil
-	}
-
-	cost, err := bcrypt.Cost(encodedB)
-	if err != nil {
+	c, err := parse(encodedB)
+	if err != nil || c == nil {
 		return verifier.Skip, err
 	}
-
 	result, err := compareHashAndPassword(encodedB, []byte(password))
 	if err != nil || result != verifier.OK {
 		return result, err
 	}
 
-	if cost != h.cost {
+	if c.cost != h.cost {
 		result = verifier.NeedUpdate
 	}
 
@@ -103,15 +143,61 @@ func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 }
 
 // New will return a Hasher with cost as bcrypt parameter.
-func New(cost int) *Hasher {
+func New(cost int, opts *ValidationOpts) *Hasher {
 	return &Hasher{
+		opts: checkValidationOpts(opts),
 		cost: cost,
 	}
 }
 
+type ValidationOpts struct {
+	MinCost int
+	MaxCost int
+}
+
+var DefaultValidationOpts = ValidationOpts{
+	MinCost: DefaultMinCost,
+	MaxCost: DefaultMaxCost,
+}
+
+func checkValidationOpts(opts *ValidationOpts) *ValidationOpts {
+	if opts == nil {
+		return &DefaultValidationOpts
+	}
+	if opts.MinCost == 0 {
+		opts.MinCost = DefaultMinCost
+	}
+	if opts.MaxCost == 0 {
+		opts.MaxCost = DefaultMaxCost
+	}
+	return opts
+}
+
+type Verifier struct {
+	opts *ValidationOpts
+}
+
+func NewVerifier(opts *ValidationOpts) *Verifier {
+	return &Verifier{
+		opts: checkValidationOpts(opts),
+	}
+}
+
+func (v *Verifier) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse([]byte(encoded))
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+	err = c.validate(v.opts)
+	if err != nil {
+		return verifier.Fail, err
+	}
+	return verifier.OK, nil
+}
+
 // Verify parses encoded and uses its bcrypt parameters
 // to verify password against its hash.
-func Verify(encoded, password string) (verifier.Result, error) {
+func (v *Verifier) Verify(encoded, password string) (verifier.Result, error) {
 	encodedB := []byte(encoded)
 	if !hasBcryptVersion(encodedB) {
 		return verifier.Skip, nil
@@ -119,6 +205,3 @@ func Verify(encoded, password string) (verifier.Result, error) {
 
 	return compareHashAndPassword(encodedB, []byte(password))
 }
-
-// Verifier for Bcrypt.
-var Verifier = verifier.VerifyFunc(Verify)

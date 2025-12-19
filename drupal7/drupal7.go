@@ -9,9 +9,11 @@
 package drupal7
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/zitadel/passwap/internal/encoding"
@@ -24,39 +26,106 @@ const (
 	Format     = "%s%s%s%s"
 )
 
-// Verify checks if the given password matches the provided Drupal 7 password hash.
-func Verify(hash, password string) (verifier.Result, error) {
-	if !strings.HasPrefix(hash, Identifier) {
-		return verifier.Skip, errors.New("invalid identifier")
-	}
+const (
+	DefaultMinIterations = 1000
+	DefaultMaxIterations = 500000
+)
 
-	if len(hash) != HashLength {
-		return verifier.Skip, errors.New("invalid drupal hash length")
+type checker struct {
+	iterations int
+	salt       []byte
+	hash       []byte
+}
+
+func parse(hash string) (*checker, error) {
+	if !strings.HasPrefix(hash, Identifier) {
+		return nil, errors.New("invalid identifier")
 	}
+	if len(hash) != HashLength {
+		return nil, errors.New("invalid drupal hash length")
+	}
+	hashB := []byte(hash)
 
 	// Components from the hash
 	// Format: $S$ + iteration_char + 8_char_salt + 43_char_hash
-	iterationChar := hash[3]          // Character at position 3
-	salt := hash[4:12]                // Characters 4-11 (8 chars)
-	storedHashPortion := hash[12:]    // Rest is the hash (43 chars)
-
-	// Get iteration count from the character
-	iterations := getIterationCount(iterationChar)
+	iterations := getIterationCount(hash[3]) // Character at position 3
 	if iterations == -1 {
-		return verifier.Skip, errors.New("invalid iteration character")
+		return nil, errors.New("invalid iteration character")
 	}
+	return &checker{
+		iterations: iterations,
+		salt:       bytes.Clone(hashB[4:12]), // Characters 4-11 (8 chars)
+		hash:       bytes.Clone(hashB[12:]),  // Rest is the hash (43 chars)
+	}, nil
+}
 
-	// Hash the provided password with the same salt and iterations
-	computedHashPortion := hashPassword(password, salt, iterations)
-
+func (c *checker) verify(password string) verifier.Result {
+	computedHashPortion := hashPassword([]byte(password), c.salt, c.iterations)
 	// Compare only the hash portion (truncate computed hash to match stored length)
-	if len(computedHashPortion) > len(storedHashPortion) {
-		computedHashPortion = computedHashPortion[:len(storedHashPortion)]
+	if len(computedHashPortion) > len(c.hash) {
+		computedHashPortion = computedHashPortion[:len(c.hash)]
 	}
+	match := subtle.ConstantTimeCompare(computedHashPortion, c.hash)
+	return verifier.Result(match)
+}
 
-	match := subtle.ConstantTimeCompare([]byte(computedHashPortion), []byte(storedHashPortion))
+type ValidationOpts struct {
+	MinIterations int
+	MaxIterations int
+}
 
-	return verifier.Result(match), nil
+var DefaultValidationOpts = &ValidationOpts{
+	MinIterations: DefaultMinIterations,
+	MaxIterations: DefaultMaxIterations,
+}
+
+func checkValidationOpts(opts *ValidationOpts) *ValidationOpts {
+	if opts == nil {
+		return DefaultValidationOpts
+	}
+	if opts.MinIterations <= 0 {
+		opts.MinIterations = DefaultMinIterations
+	}
+	if opts.MaxIterations <= 0 {
+		opts.MaxIterations = DefaultMaxIterations
+	}
+	return opts
+}
+
+type Verifier struct {
+	opts *ValidationOpts
+}
+
+func NewVerifier(opts *ValidationOpts) *Verifier {
+	return &Verifier{
+		opts: checkValidationOpts(opts),
+	}
+}
+
+func (v *Verifier) Validate(hash string) (verifier.Result, error) {
+	c, err := parse(hash)
+	if err != nil || c == nil {
+		return verifier.Skip, fmt.Errorf("drupal7 parse: %w", err)
+	}
+	if c.iterations < v.opts.MinIterations || c.iterations > v.opts.MaxIterations {
+		return verifier.Fail, &verifier.BoundsError{
+			Algorithm: "Drupal 7",
+			Param:     "iterations",
+			Min:       v.opts.MinIterations,
+			Max:       v.opts.MaxIterations,
+			Actual:    c.iterations,
+		}
+	}
+	return verifier.OK, nil
+}
+
+// Verify checks if the given password matches the provided Drupal 7 password hash.
+func (v *Verifier) Verify(hash, password string) (verifier.Result, error) {
+	c, err := parse(hash)
+	if err != nil || c == nil {
+		return verifier.Skip, fmt.Errorf("drupal7 parse: %w", err)
+	}
+	return c.verify(password), nil
 }
 
 // getIterationCount extracts the iteration count from the hash character
@@ -70,23 +139,20 @@ func getIterationCount(char byte) int {
 }
 
 // hashPassword implements Drupal's password hashing algorithm
-func hashPassword(password, salt string, iterations int) string {
+func hashPassword(password, salt []byte, iterations int) []byte {
 	// Initial hash: SHA-512(salt + password)
 	hash := sha512.New()
-	hash.Write([]byte(salt + password))
+	hash.Write(append(salt, password...))
 	digest := hash.Sum(nil)
 
 	// Iterate: SHA-512(previous_hash + password)
 	for i := 0; i < iterations; i++ {
 		hash.Reset()
 		hash.Write(digest)
-		hash.Write([]byte(password))
+		hash.Write(password)
 		digest = hash.Sum(nil)
 	}
 
 	// Use crypt3 encoding
-	return string(encoding.EncodeCrypt3(digest))
+	return encoding.EncodeCrypt3(digest)
 }
-
-
-var Verifier = verifier.VerifyFunc(Verify)

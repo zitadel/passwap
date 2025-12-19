@@ -12,14 +12,11 @@ package md5
 
 import (
 	"crypto/md5"
-	"crypto/rand"
 	"crypto/subtle"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/zitadel/passwap/internal/encoding"
-	"github.com/zitadel/passwap/internal/salt"
 	"github.com/zitadel/passwap/verifier"
 )
 
@@ -99,18 +96,6 @@ func checksum(password, salt []byte) []byte {
 // 6 saltbytes result in 8 characters of encoded salt.
 const saltBytes = 6
 
-func hash(r io.Reader, password string) (string, error) {
-	salt, err := salt.New(r, saltBytes)
-	if err != nil {
-		return "", fmt.Errorf("md5: %w", err)
-	}
-
-	encSalt := encoding.EncodeCrypt3(salt)
-
-	checksum := checksum([]byte(password), encSalt)
-	return fmt.Sprintf(Format, encSalt, checksum), nil
-}
-
 var scanFormat = strings.ReplaceAll(Format, "$", " ")
 
 type checker struct {
@@ -143,8 +128,22 @@ func (c *checker) verify(password string) verifier.Result {
 	)
 }
 
+type Verifier struct{}
+
+func NewVerifier() *Verifier {
+	return &Verifier{}
+}
+
+func (v *Verifier) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, fmt.Errorf("md5 parse: %w", err)
+	}
+	return verifier.OK, nil
+}
+
 // Verify parses encoded and verfies password against the checksum.
-func Verify(encoded, password string) (verifier.Result, error) {
+func (v *Verifier) Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
 	if err != nil || c == nil {
 		return verifier.Skip, err
@@ -152,24 +151,3 @@ func Verify(encoded, password string) (verifier.Result, error) {
 
 	return c.verify(password), nil
 }
-
-// Hasher provides an md5 hasher which always obtains
-// a salt of 6 random bytes, resulting in 8 encoded characters.
-// md5 is considered crypgraphically broken and this hasher
-// should not be used in new applications.
-// It is only provided for legacy applications that really
-// depend on md5.
-type Hasher struct{}
-
-// Hash implements passwap.Hasher.
-func (Hasher) Hash(password string) (string, error) {
-	return hash(rand.Reader, password)
-}
-
-// Verify implements passwap.Verifier
-func (Hasher) Verify(encoded, password string) (verifier.Result, error) {
-	return Verify(encoded, password)
-}
-
-// Verifier for md5.
-var Verifier = verifier.VerifyFunc(Verify)

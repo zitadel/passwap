@@ -34,6 +34,12 @@ const (
 	Prefix = "$" + IdentifierSHA1
 )
 
+// Defaults for pbkdf2 validation options.
+const (
+	MinRounds = 1000
+	MaxRounds = 10000000
+)
+
 func hashFuncForIdentifier(id string) func() hash.Hash {
 	switch id {
 	case IdentifierSHA1:
@@ -141,6 +147,19 @@ func parse(encoded string) (*checker, error) {
 	return &c, nil
 }
 
+func (c *checker) validate(opts *ValidationOpts) error {
+	if c.Rounds < opts.MinRounds || c.Rounds > opts.MaxRounds {
+		return &verifier.BoundsError{
+			Algorithm: IdentifierSHA1,
+			Param:     "rounds",
+			Min:       int(opts.MinRounds),
+			Max:       int(opts.MaxRounds),
+			Actual:    int(c.Rounds),
+		}
+	}
+	return nil
+}
+
 func (c *checker) verify(pw string) verifier.Result {
 	hash := pbkdf2.Key([]byte(pw), c.salt, int(c.Rounds), int(c.KeyLen), c.hf)
 	res := subtle.ConstantTimeCompare(hash, c.hash)
@@ -149,6 +168,7 @@ func (c *checker) verify(pw string) verifier.Result {
 }
 
 type Hasher struct {
+	opts *ValidationOpts
 	p    Params
 	rand io.Reader
 	hf   func() hash.Hash
@@ -174,6 +194,20 @@ func (h *Hasher) Hash(password string) (string, error) {
 	), nil
 }
 
+func (h *Hasher) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+
+	err = c.validate(h.opts)
+	if err != nil {
+		return verifier.Fail, err
+	}
+
+	return verifier.OK, nil
+}
+
 // Verify implements passwap.Verifier
 func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
@@ -193,9 +227,10 @@ func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 	return verifier.OK, nil
 }
 
-func newHasher(p Params, id string) *Hasher {
+func newHasher(p Params, id string, opts *ValidationOpts) *Hasher {
 	p.id = id
 	return &Hasher{
+		opts: checkValidationOpts(opts),
 		p:    p,
 		rand: rand.Reader,
 		hf:   hashFuncForIdentifier(id),
@@ -203,28 +238,75 @@ func newHasher(p Params, id string) *Hasher {
 }
 
 // NewSHA1 returns a pbkdf2 SHA1 Hasher.
-func NewSHA1(p Params) *Hasher {
-	return newHasher(p, IdentifierSHA1)
+func NewSHA1(p Params, opts *ValidationOpts) *Hasher {
+	return newHasher(p, IdentifierSHA1, opts)
 }
 
 // NewSHA224 returns a pbkdf2 SHA224 Hasher.
-func NewSHA224(p Params) *Hasher {
-	return newHasher(p, IdentifierSHA224)
+func NewSHA224(p Params, opts *ValidationOpts) *Hasher {
+	return newHasher(p, IdentifierSHA224, opts)
 }
 
 // NewSHA256 returns a pbkdf2 SHA256 Hasher.
-func NewSHA256(p Params) *Hasher {
-	return newHasher(p, IdentifierSHA256)
+func NewSHA256(p Params, opts *ValidationOpts) *Hasher {
+	return newHasher(p, IdentifierSHA256, opts)
 }
 
 // NewSHA384 returns a pbkdf2 SHA384 Hasher.
-func NewSHA384(p Params) *Hasher {
-	return newHasher(p, IdentifierSHA384)
+func NewSHA384(p Params, opts *ValidationOpts) *Hasher {
+	return newHasher(p, IdentifierSHA384, opts)
 }
 
 // NewSHA512 returns a pbkdf2 SHA512 Hasher.
-func NewSHA512(p Params) *Hasher {
-	return newHasher(p, IdentifierSHA512)
+func NewSHA512(p Params, opts *ValidationOpts) *Hasher {
+	return newHasher(p, IdentifierSHA512, opts)
+}
+
+type ValidationOpts struct {
+	MinRounds uint32
+	MaxRounds uint32
+}
+
+var DefaultValidationOpts = &ValidationOpts{
+	MinRounds: MinRounds,
+	MaxRounds: MaxRounds,
+}
+
+func checkValidationOpts(opts *ValidationOpts) *ValidationOpts {
+	if opts == nil {
+		return DefaultValidationOpts
+	}
+	if opts.MinRounds == 0 {
+		opts.MinRounds = DefaultValidationOpts.MinRounds
+	}
+	if opts.MaxRounds == 0 {
+		opts.MaxRounds = DefaultValidationOpts.MaxRounds
+	}
+	return opts
+}
+
+type Verifier struct {
+	opts *ValidationOpts
+}
+
+func NewVerifier(opts *ValidationOpts) *Verifier {
+	return &Verifier{
+		opts: checkValidationOpts(opts),
+	}
+}
+
+func (v *Verifier) Validate(encoded string) (verifier.Result, error) {
+	c, err := parse(encoded)
+	if err != nil || c == nil {
+		return verifier.Skip, err
+	}
+
+	err = c.validate(v.opts)
+	if err != nil {
+		return verifier.Fail, err
+	}
+
+	return verifier.OK, nil
 }
 
 // Verify parses encoded and uses its pbkdf2 parameters
@@ -236,7 +318,7 @@ func NewSHA512(p Params) *Hasher {
 // the alternative base64 encoding as defined by passlib.
 // This is standard encoding with `+` replaced by `.`
 // without padding.
-func Verify(encoded, password string) (verifier.Result, error) {
+func (v *Verifier) Verify(encoded, password string) (verifier.Result, error) {
 	c, err := parse(encoded)
 	if err != nil || c == nil {
 		return verifier.Skip, err
@@ -244,5 +326,3 @@ func Verify(encoded, password string) (verifier.Result, error) {
 
 	return c.verify(password), nil
 }
-
-var Verifier = verifier.VerifyFunc(Verify)

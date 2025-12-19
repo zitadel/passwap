@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-        "github.com/zitadel/passwap/internal/testvalues"
+	"github.com/zitadel/passwap/internal/testvalues"
 	"github.com/zitadel/passwap/verifier"
 )
 
@@ -133,7 +133,51 @@ func Test_checker_verify(t *testing.T) {
 	}
 }
 
-func TestVerify(t *testing.T) {
+func TestVerifier_Validate(t *testing.T) {
+	type args struct {
+		encoded string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    verifier.Result
+		wantErr bool
+	}{
+		{
+			name:    "not md5salted",
+			args:    args{testvalues.EncodedBcrypt2b},
+			want:    verifier.Skip,
+			wantErr: false,
+		},
+		{
+			name:    "parse error",
+			args:    args{"$md5salted$foo"},
+			want:    verifier.Skip,
+			wantErr: true,
+		},
+		{
+			name:    "success",
+			args:    args{MD5SaltedEncodedS},
+			want:    verifier.OK,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVerifier()
+			got, err := v.Validate(tt.args.encoded)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerifier_Verify(t *testing.T) {
 	type args struct {
 		encoded  string
 		password string
@@ -178,7 +222,8 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.args.encoded, tt.args.password)
+			v := NewVerifier()
+			got, err := v.Verify(tt.args.encoded, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return

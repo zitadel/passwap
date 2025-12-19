@@ -16,13 +16,27 @@ import (
 	"github.com/zitadel/passwap/verifier"
 )
 
+type Verifier struct{}
+
+func NewVerifier() *Verifier {
+	return &Verifier{}
+}
+
+func (v *Verifier) Validate(digest string) (verifier.Result, error) {
+	_, err := hex.DecodeString(digest)
+	if err != nil {
+		return verifier.Skip, fmt.Errorf("md5plain parse: %w", err)
+	}
+	return verifier.OK, nil
+}
+
 // Verify an plain md5 digest without salt.
 // Digest must be hex encoded.
 //
 // Note that md5 digests do not have an identifier.
 // Therefore it might be that Verify accepts any hex encoded string
 // but fails password verification.
-func Verify(digest, password string) (verifier.Result, error) {
+func (v *Verifier) Verify(digest, password string) (verifier.Result, error) {
 	decoded, err := hex.DecodeString(digest)
 	if err != nil {
 		return verifier.Skip, fmt.Errorf("md5plain parse: %w", err)
@@ -32,5 +46,3 @@ func Verify(digest, password string) (verifier.Result, error) {
 
 	return verifier.Result(res), nil
 }
-
-var Verifier = verifier.VerifyFunc(Verify)
