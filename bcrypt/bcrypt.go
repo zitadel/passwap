@@ -116,7 +116,7 @@ func (h *Hasher) Validate(encoded string) (verifier.Result, error) {
 	if err != nil || c == nil {
 		return verifier.Skip, err
 	}
-	err = c.validate(checkValidaionOpts(h.opts))
+	err = c.validate(checkValidationOpts(h.opts))
 	if err != nil {
 		return verifier.Fail, err
 	}
@@ -145,7 +145,7 @@ func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 // New will return a Hasher with cost as bcrypt parameter.
 func New(cost int, opts *ValidationOpts) *Hasher {
 	return &Hasher{
-		opts: checkValidaionOpts(opts),
+		opts: checkValidationOpts(opts),
 		cost: cost,
 	}
 }
@@ -160,7 +160,7 @@ var DefaultValidationOpts = ValidationOpts{
 	MaxCost: DefaultMaxCost,
 }
 
-func checkValidaionOpts(opts *ValidationOpts) *ValidationOpts {
+func checkValidationOpts(opts *ValidationOpts) *ValidationOpts {
 	if opts == nil {
 		return &DefaultValidationOpts
 	}
@@ -179,7 +179,7 @@ type Verifier struct {
 
 func NewVerifier(opts *ValidationOpts) *Verifier {
 	return &Verifier{
-		opts: checkValidaionOpts(opts),
+		opts: checkValidationOpts(opts),
 	}
 }
 

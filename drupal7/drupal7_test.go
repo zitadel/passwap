@@ -89,7 +89,7 @@ func TestVerifier_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "too may iterations",
+			name:    "too many iterations",
 			args:    struct{ hash string }{hash: "$S$ZZiTwp95d.CM.PorExdDeWcec0F1SeaEsf3Yon9RUcrhQy4Q7XX1"},
 			want:    verifier.Fail,
 			wantErr: true,

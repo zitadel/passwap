@@ -419,14 +419,14 @@ func TestVerifier_Validate(t *testing.T) {
 			want:    verifier.OK,
 		},
 		{
-			name:    "N too small",
+			name:    "LN too small",
 			opts:    testOpts,
 			encoded: `$scrypt$ln=1,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
 			want:    verifier.Fail,
 			wantErr: true,
 		},
 		{
-			name:    "N too large",
+			name:    "LN too large",
 			opts:    testOpts,
 			encoded: `$scrypt$ln=17,r=4,p=5$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ7Ln9D8nQ`,
 			want:    verifier.Fail,

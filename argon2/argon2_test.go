@@ -446,8 +446,8 @@ func Test_checkValidationOpts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := checkValidaionOpts(tt.opts); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("checkValidaionOpts() = %v, want %v", got, tt.want)
+			if got := checkValidationOpts(tt.opts); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkValidationOpts() = %v, want %v", got, tt.want)
 			}
 		})
 	}

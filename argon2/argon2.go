@@ -11,9 +11,10 @@ import (
 	"io"
 	"strings"
 
+	"golang.org/x/crypto/argon2"
+
 	"github.com/zitadel/passwap/internal/salt"
 	"github.com/zitadel/passwap/verifier"
-	"golang.org/x/crypto/argon2"
 )
 
 // Argon2 identifiers
@@ -232,7 +233,7 @@ func NewArgon2i(p Params, opts *ValidationOpts) *Hasher {
 	p.id = Identifier_i
 
 	return &Hasher{
-		opts: checkValidaionOpts(opts),
+		opts: checkValidationOpts(opts),
 		p:    p,
 		rand: rand.Reader,
 		hf:   argon2.Key,
@@ -243,7 +244,7 @@ func NewArgon2id(p Params, opts *ValidationOpts) *Hasher {
 	p.id = Identifier_id
 
 	return &Hasher{
-		opts: checkValidaionOpts(opts),
+		opts: checkValidationOpts(opts),
 		p:    p,
 		rand: rand.Reader,
 		hf:   argon2.IDKey,
@@ -268,7 +269,7 @@ var DefaultValidationOpts = &ValidationOpts{
 	MaxThreads: DefaultMaxThreads,
 }
 
-func checkValidaionOpts(opts *ValidationOpts) *ValidationOpts {
+func checkValidationOpts(opts *ValidationOpts) *ValidationOpts {
 	if opts == nil {
 		return DefaultValidationOpts
 	}
@@ -299,7 +300,7 @@ type Verifier struct {
 
 func NewVerifier(opts *ValidationOpts) *Verifier {
 	return &Verifier{
-		opts: checkValidaionOpts(opts),
+		opts: checkValidationOpts(opts),
 	}
 }
 

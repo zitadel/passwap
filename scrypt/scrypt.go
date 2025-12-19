@@ -11,9 +11,10 @@ import (
 	"io"
 	"strings"
 
+	"golang.org/x/crypto/scrypt"
+
 	"github.com/zitadel/passwap/internal/salt"
 	"github.com/zitadel/passwap/verifier"
-	"golang.org/x/crypto/scrypt"
 )
 
 // Identifiers and prefixes that describe and

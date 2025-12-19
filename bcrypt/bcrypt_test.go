@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/zitadel/passwap/internal/salt"
 	"github.com/zitadel/passwap/internal/testvalues"
 	"github.com/zitadel/passwap/verifier"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func Test_hasBcryptVersion(t *testing.T) {
@@ -302,7 +303,7 @@ func TestHasher_Verify(t *testing.T) {
 	}
 }
 
-func Test_checkValidaionOpts(t *testing.T) {
+func Test_checkValidationOpts(t *testing.T) {
 	type args struct {
 		opts *ValidationOpts
 	}
@@ -346,8 +347,8 @@ func Test_checkValidaionOpts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := checkValidaionOpts(tt.args.opts); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("checkValidaionOpts() = %v, want %v", got, tt.want)
+			if got := checkValidationOpts(tt.args.opts); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("checkValidationOpts() = %v, want %v", got, tt.want)
 			}
 		})
 	}

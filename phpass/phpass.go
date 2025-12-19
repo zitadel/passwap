@@ -145,7 +145,6 @@ func (c *checker) verify(password []byte) verifier.Result {
 	copy(out[4:12], c.salt)
 	encodedDigest := encoding.EncodeCrypt3(digest[:16])
 	copy(out[12:], encodedDigest)
-	subtle.ConstantTimeCompare(out, c.hash)
 
 	return verifier.Result(subtle.ConstantTimeCompare(out, c.hash))
 }
