@@ -30,6 +30,11 @@ func Test_createHash512(t *testing.T) {
 			want: "$6$rounds=5000$saltstring$svn8UoSVapNtMuq1ukKS4tPQd8iKwSMHWjl/O817G3uBnIFNjnQJuesI68u4OTLiBFdcbYEdFCoEOfaS35inz1",
 		},
 		{
+			name: "default rounds",
+			args: args{"Hello world!", "saltstring", 0},
+			want: "$6$saltstring$svn8UoSVapNtMuq1ukKS4tPQd8iKwSMHWjl/O817G3uBnIFNjnQJuesI68u4OTLiBFdcbYEdFCoEOfaS35inz1",
+		},
+		{
 			name: "10000 rounds and long salt",
 			args: args{"Hello world!", "saltstringsaltstring", 10000},
 			want: "$6$rounds=10000$saltstringsaltst$OW1/O6BYHV6BcXZu8QVeXbDWra3Oeqh0sbHbbMCVNSnCM/UrjmM0Dp8vOuZeHBy/YTBmSK6H9qs/y3RnOaw5v.",
@@ -63,7 +68,7 @@ func Test_createHash512(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hash := createHash(true, []byte(tt.args.password), []byte(tt.args.salt), tt.args.rounds)
+			hash := createHash(true, []byte(tt.args.password), []byte(tt.args.salt), tt.args.rounds, tt.args.rounds != 0)
 			if !bytes.Equal(hash, []byte(tt.want)) {
 				t.Errorf("createHash() = %v, want %v", string(hash), (tt.want))
 			}
@@ -88,6 +93,11 @@ func Test_createHash256(t *testing.T) {
 			name: "basic",
 			args: args{"Hello world!", "saltstring", 5000},
 			want: "$5$rounds=5000$saltstring$5B8vYYiY.CVt1RlTTf8KbXBH3hsxY/GNooZaBBGWEc5",
+		},
+		{
+			name: "default rounds",
+			args: args{"Hello world!", "saltstring", 0},
+			want: "$5$saltstring$5B8vYYiY.CVt1RlTTf8KbXBH3hsxY/GNooZaBBGWEc5",
 		},
 		{
 			name: "10000 rounds and long salt",
@@ -123,7 +133,7 @@ func Test_createHash256(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hash := createHash(false, []byte(tt.args.password), []byte(tt.args.salt), tt.args.rounds)
+			hash := createHash(false, []byte(tt.args.password), []byte(tt.args.salt), tt.args.rounds, tt.args.rounds != 0)
 			if !bytes.Equal(hash, []byte(tt.want)) {
 				t.Errorf("createHash() = %v, want %v", string(hash), (tt.want))
 			}
@@ -220,10 +230,11 @@ func Test_checker_verify(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			checker := &checker{
-				use512: true,
-				rounds: 5000,
-				hash:   []byte("$6$rounds=5000$salt$IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g."),
-				salt:   []byte("salt"),
+				use512:        true,
+				rounds:        5000,
+				includeRounds: true,
+				hash:          []byte("$6$rounds=5000$salt$IxDD3jeSOb5eB1CX5LBsqZFVkJdido3OUILO5Ifz5iwMuTS4XMS130MTSuDDl3aCI6WouIL9AjRbLCelDCy.g."),
+				salt:          []byte("salt"),
 			}
 
 			if got := checker.verify(tt.password); got != tt.want {
@@ -246,7 +257,7 @@ func TestHasher_Hash(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "succes",
+			name: "success",
 			rand: strings.NewReader("saltsaltsaltsalt"),
 			want: "$6$rounds=10000$n34PoBLMgFrQVl4R$7.cb7CLz8wagvy7HkLZ8dcil04pgps4hbri2LxtxwEUvf82JeV07F65sPWlHuwPBoVO6q49Az1vHmyvfmxw6Z/",
 		},
@@ -255,9 +266,10 @@ func TestHasher_Hash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &Hasher{
-				use512: true,
-				rounds: 10000,
-				rand:   tt.rand,
+				use512:        true,
+				rounds:        10000,
+				includeRounds: true,
+				rand:          tt.rand,
 			}
 
 			got, err := h.Hash("foobar")
@@ -377,7 +389,7 @@ func TestHasher_Verify(t *testing.T) {
 			want:     verifier.NeedUpdate,
 		},
 		{
-			name:     "succes",
+			name:     "success",
 			encoded:  encoded,
 			password: password,
 			rounds:   10000,
@@ -387,9 +399,10 @@ func TestHasher_Verify(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &Hasher{
-				use512: true,
-				rounds: tt.rounds,
-				rand:   strings.NewReader("saltsaltsaltsalt"),
+				use512:        true,
+				rounds:        tt.rounds,
+				includeRounds: tt.rounds != 0,
+				rand:          strings.NewReader("saltsaltsaltsalt"),
 			}
 			got, err := h.Verify(tt.encoded, tt.password)
 			if (err != nil) != tt.wantErr {
@@ -400,6 +413,23 @@ func TestHasher_Verify(t *testing.T) {
 				t.Errorf("Hasher.Verify() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// Per the SHA-crypt spec, omitting rounds= implies the default of 5000.
+// Hashes produced by glibc crypt(3), OpenSSL, and the Rust pwhash crate
+// omit rounds= when using the default. This test verifies that such
+// hashes can be verified.
+// Hash generated with: openssl passwd -6 -salt saltstring 'Hello world!'
+func TestHasher_Verify_implicit_default_rounds(t *testing.T) {
+	h := New512(5000, nil)
+	encoded := "$6$saltstring$svn8UoSVapNtMuq1ukKS4tPQd8iKwSMHWjl/O817G3uBnIFNjnQJuesI68u4OTLiBFdcbYEdFCoEOfaS35inz1"
+	res, err := h.Verify(encoded, "Hello world!")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != verifier.OK {
+		t.Errorf("Hasher.Verify() = %s, want %s", res, verifier.OK)
 	}
 }
 
@@ -562,6 +592,20 @@ func TestVerifier_Validate(t *testing.T) {
 				t.Errorf("Validate() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// Per the SHA-crypt spec, omitting rounds= implies the default of 5000.
+// Hash generated with: openssl passwd -6 -salt saltstring 'Hello world!'
+func TestVerifier_Verify_implicit_default_rounds(t *testing.T) {
+	v := NewVerifier(nil)
+	encoded := "$6$saltstring$svn8UoSVapNtMuq1ukKS4tPQd8iKwSMHWjl/O817G3uBnIFNjnQJuesI68u4OTLiBFdcbYEdFCoEOfaS35inz1"
+	res, err := v.Verify(encoded, "Hello world!")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != verifier.OK {
+		t.Errorf("Verifier.Verify() = %s, want %s", res, verifier.OK)
 	}
 }
 

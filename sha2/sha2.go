@@ -32,7 +32,7 @@ const (
 	RoundsDefault    = 5000
 )
 
-func createHash(is512 bool, password, salt []byte, rounds int) []byte {
+func createHash(is512 bool, password, salt []byte, rounds int, includeRounds bool) []byte {
 	if len(salt) > 16 {
 		salt = salt[0:16]
 	}
@@ -45,10 +45,13 @@ func createHash(is512 bool, password, salt []byte, rounds int) []byte {
 	}
 	digest := createDigest(hash, password, salt, calcRounds(rounds))
 
-	return []byte(createOutputString(is512, digest, salt, calcRounds(rounds)))
+	return []byte(createOutputString(is512, digest, salt, calcRounds(rounds), includeRounds))
 }
 
 func calcRounds(rounds int) int {
+	if rounds == 0 {
+		return RoundsDefault
+	}
 	if rounds < RoundsMin {
 		return RoundsMin
 	}
@@ -133,7 +136,7 @@ func createDigest(hash hash.Hash, password, salt []byte, rounds int) []byte {
 	return digestC
 }
 
-func createOutputString(is512 bool, digest, salt []byte, rounds int) string {
+func createOutputString(is512 bool, digest, salt []byte, rounds int, includeRounds bool) string {
 	var builder strings.Builder
 
 	builder.WriteString("$")
@@ -142,8 +145,10 @@ func createOutputString(is512 bool, digest, salt []byte, rounds int) string {
 	} else {
 		builder.WriteString("5")
 	}
-	builder.WriteString("$")
-	builder.WriteString(fmt.Sprintf("rounds=%d", rounds))
+	if includeRounds {
+		builder.WriteString("$")
+		builder.WriteString(fmt.Sprintf("rounds=%d", rounds))
+	}
 	builder.WriteString("$")
 	builder.WriteString(string(salt))
 	builder.WriteString("$")
@@ -185,10 +190,11 @@ var (
 )
 
 type checker struct {
-	use512 bool
-	rounds int
-	hash   []byte
-	salt   []byte
+	use512        bool
+	rounds        int
+	includeRounds bool
+	hash          []byte
+	salt          []byte
 }
 
 func parse(hash string) (*checker, error) {
@@ -213,6 +219,7 @@ func parse(hash string) (*checker, error) {
 			return nil, fmt.Errorf("invalid rounds value")
 		}
 		checker.rounds = rounds
+		checker.includeRounds = true
 		i++
 	} else {
 		checker.rounds = RoundsDefault
@@ -224,8 +231,12 @@ func parse(hash string) (*checker, error) {
 }
 
 func (c *checker) validate(opts *ValidationOpts) error {
+	rounds := c.rounds
+	if rounds == 0 {
+		rounds = RoundsDefault
+	}
 	if c.use512 {
-		if c.rounds < opts.MinSha512Rounds || c.rounds > opts.MaxSha512Rounds {
+		if rounds < opts.MinSha512Rounds || rounds > opts.MaxSha512Rounds {
 			return &verifier.BoundsError{
 				Algorithm: "SHA-512",
 				Param:     "rounds",
@@ -235,7 +246,7 @@ func (c *checker) validate(opts *ValidationOpts) error {
 			}
 		}
 	} else {
-		if c.rounds < opts.MinSha256Rounds || c.rounds > opts.MaxSha256Rounds {
+		if rounds < opts.MinSha256Rounds || rounds > opts.MaxSha256Rounds {
 			return &verifier.BoundsError{
 				Algorithm: "SHA-256",
 				Param:     "rounds",
@@ -249,7 +260,7 @@ func (c *checker) validate(opts *ValidationOpts) error {
 }
 
 func (c *checker) verify(password string) verifier.Result {
-	passwordHash := createHash(c.use512, []byte(password), c.salt, c.rounds)
+	passwordHash := createHash(c.use512, []byte(password), c.salt, c.rounds, c.includeRounds)
 	res := subtle.ConstantTimeCompare(passwordHash, c.hash)
 
 	return verifier.Result(res)
@@ -257,10 +268,11 @@ func (c *checker) verify(password string) verifier.Result {
 
 // Hasher hashes and verifies crypt(3) style SHA256 and SHA512 passwords.
 type Hasher struct {
-	opts   *ValidationOpts
-	use512 bool
-	rounds int
-	rand   io.Reader
+	opts          *ValidationOpts
+	use512        bool
+	rounds        int
+	includeRounds bool
+	rand          io.Reader
 }
 
 // Hash implements passwap.Hasher.
@@ -271,7 +283,7 @@ func (h *Hasher) Hash(password string) (string, error) {
 	}
 
 	encSalt := encoding.EncodeCrypt3(salt)
-	encoded := createHash(h.use512, []byte(password), encSalt, h.rounds)
+	encoded := createHash(h.use512, []byte(password), encSalt, h.rounds, h.includeRounds)
 
 	return string(encoded), nil
 }
@@ -307,20 +319,27 @@ func (h *Hasher) Verify(encoded, password string) (verifier.Result, error) {
 	return verifier.OK, nil
 }
 
+// New256 creates a new Hasher for SHA-256 with the given rounds and validation options.
+// If rounds == 0, the default rounds value of 5000 is used.
 func New256(rounds int, opts *ValidationOpts) *Hasher {
 	return &Hasher{
-		opts:   checkValidationOpts(opts),
-		use512: false,
-		rounds: rounds,
-		rand:   rand.Reader,
+		opts:          checkValidationOpts(opts),
+		use512:        false,
+		rounds:        rounds,
+		includeRounds: rounds != 0,
+		rand:          rand.Reader,
 	}
 }
+
+// New512 creates a new Hasher for SHA-512 with the given rounds and validation options.
+// If rounds == 0, the default rounds value of 5000 is used.
 func New512(rounds int, opts *ValidationOpts) *Hasher {
 	return &Hasher{
-		opts:   checkValidationOpts(opts),
-		use512: true,
-		rounds: rounds,
-		rand:   rand.Reader,
+		opts:          checkValidationOpts(opts),
+		use512:        true,
+		rounds:        rounds,
+		includeRounds: rounds != 0,
+		rand:          rand.Reader,
 	}
 }
 
