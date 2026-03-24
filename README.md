@@ -174,7 +174,7 @@ $S$ECDgn4Og5K1g.zVRmF132EW0HfJZ5oaTBsw/roww5SWjwTEfZxqU
 
 1. The identifier is always `S`
 2. The rounds as a single character
-3. Salt with a length of 8 characters  
+3. Salt with a length of 8 characters
 4. Custom base64-encoded SHA-512 hash output
 
 This algorithm is provided to verify legacy Drupal 7 passwords and migrate to a better algorithm. Do not use for new hashes.
@@ -355,9 +355,9 @@ Versions that also build are marked with :warning:.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| <1.23   | :x:                |
-| 1.23    | :white_check_mark: |
-| 1.24    | :white_check_mark: |
+| <1.25   | :x:                |
+| 1.25    | :white_check_mark: |
+| 1.26    | :white_check_mark: |
 
 ## License
 
