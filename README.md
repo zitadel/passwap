@@ -60,7 +60,7 @@ As the salt and hash are typically raw bytes, they also need to be converted
 to characters, for example using base64.
 
 All of the Passwap supplied algorithms use the dollar sign (`$`) delimited
-encoding, aka [Modular Crypt Format](https://passlib.readthedocs.io/en/stable/modular_crypt_format.htm).
+encoding, aka [Modular Crypt Format](https://passlib.readthedocs.io/en/stable/modular_crypt_format.html).
 This results in a single string containing all of the above for
 later password verification.
 
