@@ -40,6 +40,7 @@ needs to be updated.
 | [sha2-crypt][8] | 5, 6                                                               | :heavy_check_mark: |
 | [scrypt][9]     | scrypt, 7                                                          | :heavy_check_mark: |
 | [pbkpdf2][10]   | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
+| [(s)sha][11]    | {SHA}, {SSHA}, {SHA256}, {SSHA256}, {SHA384}, {SSHA384}, {SHA512}, {SSHA512} | :x:  |
 
 [1]: https://pkg.go.dev/github.com/zitadel/passwap/argon2
 [2]: https://pkg.go.dev/github.com/zitadel/passwap/bcrypt
@@ -51,6 +52,7 @@ needs to be updated.
 [8]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
 [9]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
 [10]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
+[11]: https://pkg.go.dev/github.com/zitadel/passwap/ssha
 
 ### Encoding
 
@@ -178,6 +180,32 @@ $S$ECDgn4Og5K1g.zVRmF132EW0HfJZ5oaTBsw/roww5SWjwTEfZxqU
 4. Custom base64-encoded SHA-512 hash output
 
 This algorithm is provided to verify legacy Drupal 7 passwords and migrate to a better algorithm. Do not use for new hashes.
+
+### (S)SHA
+
+(S)SHA is a family of schemes commonly used by OpenLDAP's `userPassword`
+attribute (RFC 2307) and by Zope's `SHA1PasswordManager` /
+`SSHAPasswordManager`. Unlike the other algorithms provided by passwap, it
+does not use the Modular Crypt Format, but the curly brace scheme notation
+used by those systems, so that passwap can verify passwords exported
+as-is from an OpenLDAP or Zope database:
+
+```
+{SSHA}yxWZXy/5ITWPd3Lvedk7yUASFfBzYWx0
+ (1)   (2)
+```
+
+1. The identifier, one of `{SHA}`, `{SSHA}`, `{SHA256}`, `{SSHA256}`,
+   `{SHA384}`, `{SSHA384}`, `{SHA512}`, `{SSHA512}`. The `S`-prefixed
+   variants are salted, the others are not.
+2. Base64 encoded digest of the password (and, for salted variants, a
+   variable length salt appended to the password before hashing), followed
+   by the raw salt bytes.
+
+A single iteration of SHA-1 or SHA-2, with or without salt, is considered
+too weak for new applications. This package therefore only provides a
+`Verifier`, so that applications can migrate away from OpenLDAP, Zope and
+similar systems to a stronger hashing algorithm.
 
 ### SHA2 crypt
 
