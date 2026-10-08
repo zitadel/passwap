@@ -28,29 +28,31 @@ needs to be updated.
 
 ### Algorithms
 
-| Algorithm       | Identifiers                                                        | Secure             |
-| --------------- | ------------------------------------------------------------------ | ------------------ |
-| [argon2][1]     | argon2i, argon2id                                                  | :heavy_check_mark: |
-| [bcrypt][2]     | 2, 2a, 2b, 2y                                                      | :heavy_check_mark: |
-| [drupal7][3]    | S                                                                  | :x:                |
-| [md5-crypt][4]  | 1                                                                  | :x:                |
-| [md5 plain][5]  | Hex encoded string                                                 | :x:                |
-| [md5 salted][6] | md5salted-suffix,md5salted-prefix                                  | :x:                |
-| [phpass][7]     | P, H                                                               | :x:                |
-| [sha2-crypt][8] | 5, 6                                                               | :heavy_check_mark: |
-| [scrypt][9]     | scrypt, 7                                                          | :heavy_check_mark: |
-| [pbkpdf2][10]   | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
+| Algorithm            | Identifiers                                                        | Secure             |
+| -------------------- | ------------------------------------------------------------------ | ------------------ |
+| [argon2][1]          | argon2i, argon2id                                                  | :heavy_check_mark: |
+| [bcrypt][2]          | 2, 2a, 2b, 2y                                                      | :heavy_check_mark: |
+| [drupal7][3]         | S                                                                  | :x:                |
+| [firebase scrypt][4] | firebasescrypt                                                     | :heavy_check_mark: |
+| [md5-crypt][5]       | 1                                                                  | :x:                |
+| [md5 plain][6]       | Hex encoded string                                                 | :x:                |
+| [md5 salted][7]      | md5salted-suffix,md5salted-prefix                                  | :x:                |
+| [phpass][8]          | P, H                                                               | :x:                |
+| [sha2-crypt][9]      | 5, 6                                                               | :heavy_check_mark: |
+| [scrypt][10]         | scrypt, 7                                                          | :heavy_check_mark: |
+| [pbkpdf2][11]        | pbkdf2, pbkdf2-sha224, pbkdf2-sha256, pbkdf2-sha384, pbkdf2-sha512 | :heavy_check_mark: |
 
 [1]: https://pkg.go.dev/github.com/zitadel/passwap/argon2
 [2]: https://pkg.go.dev/github.com/zitadel/passwap/bcrypt
 [3]: https://pkg.go.dev/github.com/zitadel/passwap/drupal7
-[4]: https://pkg.go.dev/github.com/zitadel/passwap/md5
-[5]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
-[6]: https://pkg.go.dev/github.com/zitadel/passwap/md5salted
-[7]: https://pkg.go.dev/github.com/zitadel/passwap/phpass
-[8]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
-[9]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
-[10]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
+[4]: https://pkg.go.dev/github.com/zitadel/passwap/firebasescrypt
+[5]: https://pkg.go.dev/github.com/zitadel/passwap/md5
+[6]: https://pkg.go.dev/github.com/zitadel/passwap/md5plain
+[7]: https://pkg.go.dev/github.com/zitadel/passwap/md5salted
+[8]: https://pkg.go.dev/github.com/zitadel/passwap/phpass
+[9]: https://pkg.go.dev/github.com/zitadel/passwap/sha2
+[10]: https://pkg.go.dev/github.com/zitadel/passwap/scrypt
+[11]: https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2
 
 ### Encoding
 
@@ -212,6 +214,33 @@ $scrypt$ln=16,r=8,p=1$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ
 3. Base64-encoded salt
 4. Base64-encoded Scrypt hash output of the password and salt combined.
 
+### Firebase scrypt
+
+[Firebase Authentication](https://firebase.google.com/docs/auth) hashes passwords with a [modified scrypt](https://github.com/firebase/scrypt).
+The scrypt output is used as an AES-256-CTR key to encrypt the signer key of the project, and the result is the password hash.
+Firebase defines no string format for these hashes, so the format below is specific to passwap:
+
+```
+$firebasescrypt$ln=14,r=8$42xEC+ixf3L2lw==$lSrfV15cpx95/sZS2W9c9Kp6i/LVgQNDNC/qzrCnh1SAyZvqmZqAjTdn3aoItz+VHjoZilo78198JAdRuid5lQ==$Bw==$jxspr8Ki0RYycVU8zykbdLGjFQ3McFUH0uiiTvC8pVMXAn210wjLNmdZJzxUECKbm0QsEmYUSDzZvpjeJ9WmXA==
+       (1)       (2)  (3)        (4)                                                  (5)                                            (6)                                            (7)
+```
+
+1. The identifier is always `firebasescrypt`.
+2. `ln` is the Firebase `mem_cost` - `14` in this example.
+3. `r` is the Firebase `rounds` - `8` in this example. The scrypt `p` parameter is always `1` and is not part of the string.
+4. Base64-encoded salt of the user.
+5. Base64-encoded password hash of the user.
+6. Base64-encoded salt separator of the project. It may be empty.
+7. Base64-encoded signer key of the project.
+
+The salt and the password hash come from the Firebase user export.
+The other values are the "password hash parameters" of the Firebase project.
+Standard and URL-safe Base64 are accepted, with or without padding.
+The signer key is a secret of the project, and it is part of every encoded string.
+Treat the encoded strings as secrets.
+
+There is no Hasher. This verifier exists to verify passwords of users imported from Firebase, so they can be re-hashed with another algorithm.
+
 ### PBKDF2
 
 PBKDF2 uses an alternative Base64 encoding, which is based on the standard with `+` replaced by `.`, and it comes without padding. As we've also seen standard encoding with padding in the wild, the verifier will accept alternative standards with or without padding. The Hasher always produces alternative encoding.
@@ -241,7 +270,7 @@ the [Password Hashing Competition string format](https://github.com/P-H-C/phc-st
 passlib still provides the most complete documentation on the format and
 encodings used for each algorithm.
 
-Each algorithm supplied by Passwap is compatible with Passlib's encoding
+Unless a section above says otherwise, the algorithms supplied by Passwap are compatible with Passlib's encoding
 and tested against reference hashes created with Passlib.
 
 ## Example
