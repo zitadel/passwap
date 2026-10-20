@@ -1,6 +1,7 @@
 package passwap_test
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/zitadel/passwap"
@@ -91,4 +92,50 @@ func Example() {
 	fmt.Println(encoded)
 	// $argon2id$v=19$m=65536,t=2,p=4$44X+dwU+aSS85Kl1qH3/Jg$n/tQoAtx/I/Rt9BXHH9tScshWucltPPmB0HBLVtXCq0
 	// encoded is updated.
+}
+
+func ExampleNewSemaphore() {
+	// Verify hashes with the parameters stored in the encoded string,
+	// so MaxMemory caps the memory a single Verify call can use.
+	argonValidationOpts := &argon2.ValidationOpts{
+		MinMemory:  32 * 1024,
+		MaxMemory:  64 * 1024,
+		MinTime:    1,
+		MaxTime:    4,
+		MinThreads: 2,
+		MaxThreads: 8,
+	}
+	passwords := passwap.NewSwapper(
+		argon2.NewArgon2id(argon2.RecommendedIDParams, argonValidationOpts),
+	)
+
+	// Allow at most 4 concurrent hash operations.
+	// Because MaxMemory caps what Verify will accept at 64 MiB,
+	// peak hashing memory is bounded to about 4 × 64 MiB,
+	// whatever the number of concurrent requests.
+	limited := passwap.NewSemaphore(passwords, 4)
+
+	ctx := context.Background()
+
+	// Hash waits for a free slot before hashing.
+	encoded, err := limited.Hash(ctx, "good_password")
+	if err != nil {
+		panic(err)
+	}
+	// encoded is an argon2id hash with a random salt, for example:
+	// $argon2id$v=19$m=65536,t=1,p=4$d6SOdxdIip9BC7sM5H7PUQ$2E7OIz7C1NkMLOsXi5nSe5vfbthdc9N9SWVlArd200E
+	fmt.Println(encoded != "")
+
+	// Verify holds a single slot for the complete call,
+	// including the re-hash when an update is required.
+	// Pass a context with a deadline to bound the wait for a slot.
+	updated, err := limited.Verify(ctx, encoded, "good_password")
+	if err != nil {
+		panic(err)
+	}
+	// updated is empty because the hash is current.
+	fmt.Println(updated == "")
+	// Output:
+	// true
+	// true
 }
