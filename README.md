@@ -85,6 +85,10 @@ $argon2i$v=19$m=4096,t=3,p=1$cmFuZG9tc2FsdGlzaGFyZA$YMvo8AUoNtnKYGqeODruCjHdiEbl
 Changing any of the parameters or salt produces a different hash output.
 More information about the parameters can be found in the upstream [Argon2 package documentation](https://pkg.go.dev/golang.org/x/crypto/argon2).
 
+[`argon2.ParseParams`](https://pkg.go.dev/github.com/zitadel/passwap/argon2#ParseParams)
+reads the parameters out of an encoded string without verifying a password,
+for example to estimate the memory a verification will need.
+
 ### Bcrypt
 
 Bcrypt uses a custom Base64 encoding with the character set of `[./A-Za-z0-9]` and padding.
@@ -212,6 +216,10 @@ $scrypt$ln=16,r=8,p=1$cmFuZG9tc2FsdGlzaGFyZA$Rh+NnJNo1I6nRwaNqbDm6kmADswD1+7FTKZ
 3. Base64-encoded salt
 4. Base64-encoded Scrypt hash output of the password and salt combined.
 
+[`scrypt.ParseParams`](https://pkg.go.dev/github.com/zitadel/passwap/scrypt#ParseParams)
+reads the parameters out of an encoded string without verifying a password,
+for example to estimate the memory a verification will need.
+
 ### PBKDF2
 
 PBKDF2 uses an alternative Base64 encoding, which is based on the standard with `+` replaced by `.`, and it comes without padding. As we've also seen standard encoding with padding in the wild, the verifier will accept alternative standards with or without padding. The Hasher always produces alternative encoding.
@@ -229,6 +237,10 @@ $pbkdf2-sha256$12$cmFuZG9tc2FsdGlzaGFyZA$OFvEcLOIPFd/oq8egf10i.qJLI7A8nDjPLnolCW
 2. The cost parameter in rounds, which is a linear value - `12` in this example.
 3. Alternative Base64-encoded salt
 4. Alternative Base64 encoded Scrypt hash output of the password and salt combined.
+
+[`pbkdf2.ParseParams`](https://pkg.go.dev/github.com/zitadel/passwap/pbkdf2#ParseParams)
+reads the parameters out of an encoded string without verifying a password,
+for example to estimate the work a verification will need.
 
 #### Reference
 
