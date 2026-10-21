@@ -3,8 +3,14 @@
 package verifier
 
 import (
+	"errors"
 	"fmt"
 )
+
+// ErrNoMatch is returned, wrapped, by an algorithm's parsing functions
+// when the encoded string is not in the format of that algorithm.
+// Use [errors.Is] to test for it.
+var ErrNoMatch = errors.New("verifier: encoded string does not match the algorithm format")
 
 // Result of a password verification.
 //
