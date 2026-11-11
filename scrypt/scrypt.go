@@ -114,11 +114,12 @@ func parse(encoded string) (*checker, error) {
 // KeyLen and SaltLen are taken from the decoded hash and salt.
 // Both the scrypt and the Linux "7" identifier are accepted.
 //
-// The returned [Params] are not checked against any bounds.
-// Use [Verifier.Validate] or [Hasher.Validate] with [ValidationOpts] for that.
+// The returned [Params] are not checked against any bounds:
+// [Verifier.Validate] and [Hasher.Validate] check them against the
+// [ValidationOpts] their constructor was given.
 //
 // An error wrapping [verifier.ErrNoMatch] is returned when encoded
-// is not in the scrypt format.
+// does not start with a scrypt identifier.
 func ParseParams(encoded string) (Params, error) {
 	c, err := parse(encoded)
 	if err != nil {

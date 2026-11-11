@@ -7,8 +7,9 @@ import (
 	"fmt"
 )
 
-// ErrNoMatch is returned, wrapped, by an algorithm's parsing functions
-// when the encoded string is not in the format of that algorithm.
+// ErrNoMatch is returned, wrapped, by ParseParams in argon2, scrypt and
+// pbkdf2 when the encoded string does not start with that algorithm's
+// identifier.
 // Use [errors.Is] to test for it.
 var ErrNoMatch = errors.New("verifier: encoded string does not match the algorithm format")
 

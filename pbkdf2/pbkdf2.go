@@ -153,12 +153,16 @@ func parse(encoded string) (*checker, error) {
 // estimate the work a Verify will need before running it.
 // KeyLen and SaltLen are taken from the decoded hash and salt,
 // which may be in either encoding that [Verifier.Verify] accepts.
+// The hash function, such as sha256, is not part of the result, so it
+// compares equal with == to the Params the hash was made with,
+// such as [RecommendedSHA256Params].
 //
-// The returned [Params] are not checked against any bounds.
-// Use [Verifier.Validate] or [Hasher.Validate] with [ValidationOpts] for that.
+// The returned [Params] are not checked against any bounds:
+// [Verifier.Validate] and [Hasher.Validate] check them against the
+// [ValidationOpts] their constructor was given.
 //
 // An error wrapping [verifier.ErrNoMatch] is returned when encoded
-// is not in the pbkdf2 format.
+// does not start with a pbkdf2 identifier.
 func ParseParams(encoded string) (Params, error) {
 	c, err := parse(encoded)
 	if err != nil {
@@ -167,7 +171,9 @@ func ParseParams(encoded string) (Params, error) {
 	if c == nil {
 		return Params{}, fmt.Errorf("pbkdf2: %w", verifier.ErrNoMatch)
 	}
-	return c.Params, nil
+	p := c.Params
+	p.id = ""
+	return p, nil
 }
 
 func (c *checker) validate(opts *ValidationOpts) error {

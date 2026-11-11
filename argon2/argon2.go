@@ -142,12 +142,16 @@ func parse(encoded string) (*checker, error) {
 // This allows a caller to inspect the cost of a hash, for example to
 // estimate the memory a Verify will need before running it.
 // KeyLen and SaltLen are taken from the decoded hash and salt.
+// The variant, argon2i or argon2id, is not part of the result, so it
+// compares equal with == to the Params the hash was made with,
+// such as [RecommendedIDParams].
 //
-// The returned [Params] are not checked against any bounds.
-// Use [Verifier.Validate] or [Hasher.Validate] with [ValidationOpts] for that.
+// The returned [Params] are not checked against any bounds:
+// [Verifier.Validate] and [Hasher.Validate] check them against the
+// [ValidationOpts] their constructor was given.
 //
 // An error wrapping [verifier.ErrNoMatch] is returned when encoded
-// is not in the argon2 format. Like [Verifier.Verify], [ErrArgon2d] is
+// does not start with an argon2 identifier. Like [Verifier.Verify], [ErrArgon2d] is
 // returned when the encoded string carries the unsupported argon2d identifier.
 func ParseParams(encoded string) (Params, error) {
 	c, err := parse(encoded)
@@ -157,7 +161,9 @@ func ParseParams(encoded string) (Params, error) {
 	if c == nil {
 		return Params{}, fmt.Errorf("argon2: %w", verifier.ErrNoMatch)
 	}
-	return c.Params, nil
+	p := c.Params
+	p.id = ""
+	return p, nil
 }
 
 func (c *checker) validate(opts *ValidationOpts) error {

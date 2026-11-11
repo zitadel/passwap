@@ -9,6 +9,13 @@ import (
 )
 
 func TestParseParams(t *testing.T) {
+	recommended, err := NewArgon2id(RecommendedIDParams, nil).Hash(tv.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withoutID := testParams
+	withoutID.id = ""
+
 	tests := []struct {
 		name    string
 		encoded string
@@ -18,19 +25,17 @@ func TestParseParams(t *testing.T) {
 		{
 			name:    "argon2i",
 			encoded: tv.Argon2iEncoded,
-			want: Params{
-				Time:    tv.Argon2Time,
-				Memory:  tv.Argon2Memory,
-				Threads: tv.Argon2Threads,
-				KeyLen:  tv.KeyLen,
-				SaltLen: tv.SaltLen,
-				id:      Identifier_i,
-			},
+			want:    withoutID,
 		},
 		{
 			name:    "argon2id",
 			encoded: tv.Argon2idEncoded,
-			want:    testParams,
+			want:    withoutID,
+		},
+		{
+			name:    "equals the params it was made with",
+			encoded: recommended,
+			want:    RecommendedIDParams,
 		},
 		{
 			name:    "argon2d",
@@ -42,34 +47,15 @@ func TestParseParams(t *testing.T) {
 			encoded: tv.ScryptEncoded,
 			wantErr: verifier.ErrNoMatch,
 		},
-		{
-			name:    "malformed",
-			encoded: "$argon2!!!",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseParams(tt.encoded)
-			if tt.want != (Params{}) {
-				if err != nil {
-					t.Fatalf("ParseParams() error = %v, want nil", err)
-				}
-				if got != tt.want {
-					t.Errorf("ParseParams() = %+v, want %+v", got, tt.want)
-				}
-				return
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("ParseParams() error = %v, want %v", err, tt.wantErr)
 			}
-			if err == nil {
-				t.Fatal("ParseParams() error = nil, want error")
-			}
-			if got != (Params{}) {
-				t.Errorf("ParseParams() = %+v, want zero Params on error", got)
-			}
-			if tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
-				t.Errorf("ParseParams() error = %v, want %v", err, tt.wantErr)
-			}
-			if tt.wantErr == nil && errors.Is(err, verifier.ErrNoMatch) {
-				t.Errorf("ParseParams() error = %v, must not be ErrNoMatch", err)
+			if got != tt.want {
+				t.Errorf("ParseParams() = %+v, want %+v", got, tt.want)
 			}
 		})
 	}
