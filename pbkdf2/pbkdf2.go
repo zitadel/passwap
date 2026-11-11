@@ -147,6 +147,35 @@ func parse(encoded string) (*checker, error) {
 	return &c, nil
 }
 
+// ParseParams parses the pbkdf2 parameters from an encoded hash string,
+// without verifying a password.
+// This allows a caller to inspect the cost of a hash, for example to
+// estimate the work a Verify will need before running it.
+// KeyLen and SaltLen are taken from the decoded hash and salt,
+// which may be in either encoding that [Verifier.Verify] accepts.
+// The hash function, such as sha256, is not part of the result, so it
+// compares equal with == to the Params the hash was made with,
+// such as [RecommendedSHA256Params].
+//
+// The returned [Params] are not checked against any bounds:
+// [Verifier.Validate] and [Hasher.Validate] check them against the
+// [ValidationOpts] their constructor was given.
+//
+// An error wrapping [verifier.ErrNoMatch] is returned when encoded
+// does not start with a pbkdf2 identifier.
+func ParseParams(encoded string) (Params, error) {
+	c, err := parse(encoded)
+	if err != nil {
+		return Params{}, err
+	}
+	if c == nil {
+		return Params{}, fmt.Errorf("pbkdf2: %w", verifier.ErrNoMatch)
+	}
+	p := c.Params
+	p.id = ""
+	return p, nil
+}
+
 func (c *checker) validate(opts *ValidationOpts) error {
 	if c.Rounds < opts.MinRounds || c.Rounds > opts.MaxRounds {
 		return &verifier.BoundsError{

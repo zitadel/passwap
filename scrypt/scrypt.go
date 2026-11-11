@@ -107,6 +107,30 @@ func parse(encoded string) (*checker, error) {
 	return &c, nil
 }
 
+// ParseParams parses the scrypt parameters from an encoded hash string,
+// without verifying a password.
+// This allows a caller to inspect the cost of a hash, for example to
+// estimate the memory a Verify will need before running it.
+// KeyLen and SaltLen are taken from the decoded hash and salt.
+// Both the scrypt and the Linux "7" identifier are accepted.
+//
+// The returned [Params] are not checked against any bounds:
+// [Verifier.Validate] and [Hasher.Validate] check them against the
+// [ValidationOpts] their constructor was given.
+//
+// An error wrapping [verifier.ErrNoMatch] is returned when encoded
+// does not start with a scrypt identifier.
+func ParseParams(encoded string) (Params, error) {
+	c, err := parse(encoded)
+	if err != nil {
+		return Params{}, err
+	}
+	if c == nil {
+		return Params{}, fmt.Errorf("scrypt: %w", verifier.ErrNoMatch)
+	}
+	return c.Params, nil
+}
+
 var (
 	ErrRxPTooLarge = errors.New("scrypt: r*p value larger than 2^30")
 )
