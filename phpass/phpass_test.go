@@ -133,6 +133,7 @@ func TestVerifyMalformedHashes(t *testing.T) {
 		"$P$712345678",                       // Too short
 		"$X$912345678WhEyvy1YWzT4647jzeOmo0", // Invalid prefix
 		"$P$912345678X@badSalt",              // Invalid salt chars
+		"$P$!IQRaTwmfeRo7ud9Fh4E2PdI0S3r.L0", // Rounds char outside the crypt(3) alphabet
 	}
 
 	for _, hash := range test {

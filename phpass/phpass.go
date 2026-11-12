@@ -111,6 +111,9 @@ func parse(encoded string) (*checker, error) {
 
 	// Extract rounds and salt
 	c.rounds = encoding.DecodeInt6(encoded[3])
+	if c.rounds == -1 {
+		return nil, errors.New("invalid phpass rounds character")
+	}
 	c.salt = []byte(encoded[4:12])
 	return c, nil
 }
